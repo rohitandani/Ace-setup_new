@@ -6,7 +6,7 @@ https://github.com/ace-step/ACE-Step
 Apache 2.0 License
 """
 
-import os
+import os, sys
 import click
 
 
