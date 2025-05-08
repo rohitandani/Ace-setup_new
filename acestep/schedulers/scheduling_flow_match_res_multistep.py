@@ -27,7 +27,7 @@ from diffusers.schedulers.scheduling_utils import SchedulerMixin
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-def get_ancestral_step(sigma_from, sigma_to, eta=1.):
+def get_ancestral_step(sigma_from, sigma_to, eta=0.0):
     """Calculates the noise level (sigma_down) to step down to and the amount
     of noise to add (sigma_up) when doing an ancestral sampling step."""
     if not eta:
@@ -353,7 +353,7 @@ class FlowMatchResMultiStepScheduler(SchedulerMixin, ConfigMixin):
             x = sigma_fn(h) * x + h * (b1 * denoised + b2 * self.old_denoised)
 
         if self.sigmas[self.step_index + 1] > 0:
-            init_noise = torch.randn_like(x, device=x.device, generator=generator, dtype=x.dtype)
+            init_noise = torch.randn(x.size(), dtype=x.dtype, layout=x.layout, device=x.device, generator=generator)
             x = x + init_noise * s_noise * sigma_up
 
         self.old_denoised = denoised

@@ -823,6 +823,7 @@ class ACEStepPipeline:
         encoder_text_hidden_states_null=None,
         use_erg_lyric=False,
         use_erg_diffusion=False,
+        shift=3.0,
         retake_random_generators=None,
         retake_variance=0.5,
         add_retake_noise=False,
@@ -831,7 +832,6 @@ class ACEStepPipeline:
         repaint_start=0,
         repaint_end=0,
         src_latents=None,
-        shift=3.0,
     ):
 
         logger.info(
@@ -1308,7 +1308,7 @@ class ACEStepPipeline:
                     sample=target_latents,
                     return_dict=False,
                     omega=omega_scale,
-                    generator=random_generators,
+                    generator=random_generators[0],
                 )[0]
 
         if is_extend:

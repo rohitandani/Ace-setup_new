@@ -822,6 +822,7 @@ def create_text2music_ui(
             use_erg_tag,
             use_erg_lyric,
             use_erg_diffusion,
+            shift,
             oss_steps,
             guidance_scale_text,
             guidance_scale_lyric,
