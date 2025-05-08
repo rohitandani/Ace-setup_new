@@ -628,7 +628,7 @@ class ACEStepPipeline:
         else:
             target_latents = self.text2music_diffusion_process(
                 audio_duration, encoder_text_hidden_states, text_attention_mask, speaker_embeds,
-                lyric_token_idx, lyric_mask, random_generators, infer_steps, guidance_scale,
+                lyric_token_idx, lyric_mask, random_generators, infer_step, guidance_scale,
                 omega_scale, scheduler_type, cfg_type, zero_steps, use_zero_init, guidance_interval,
                 guidance_interval_decay, min_guidance_scale, oss_steps, encoder_text_hidden_states_null,
                 use_erg_lyric, use_erg_diffusion, retake_random_generators, retake_variance,
