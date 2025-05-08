@@ -146,7 +146,7 @@ def create_text2music_ui(
 
             with gr.Accordion("Advanced Settings", open=False):
                 scheduler_type = gr.Radio(
-                    ["euler", "heun"],
+                    ["euler", "heun", "res_multistep"],
                     value="euler",
                     label="Scheduler Type",
                     elem_id="scheduler_type",
@@ -218,6 +218,14 @@ def create_text2music_ui(
                     value=None,
                     info="Optimal Steps for the generation. But not test well",
                 )
+                shift = gr.Slider(
+                    minimum=1.0,
+                    maximum=5.0,
+                    step=0.1,
+                    value=3.0,
+                    label="shift",
+                    interactive=True,
+                )
 
             text2music_bnt = gr.Button("Generate", variant="primary")
 
@@ -263,6 +271,7 @@ def create_text2music_ui(
                         ),
                         retake_seeds=retake_seeds,
                         retake_variance=retake_variance,
+                        shift=shift,
                         task="retake",
                     )
 
@@ -381,6 +390,7 @@ def create_text2music_ui(
                         guidance_scale_lyric,
                         retake_seeds=retake_seeds,
                         retake_variance=retake_variance,
+                        shift=shift,
                         task="repaint",
                         repaint_start=repaint_start,
                         repaint_end=repaint_end,
@@ -696,6 +706,7 @@ def create_text2music_ui(
                         guidance_scale_lyric,
                         retake_seeds=extend_seeds,
                         retake_variance=1.0,
+                        shift=shift,
                         task="extend",
                         repaint_start=repaint_start,
                         repaint_end=repaint_end,
@@ -751,6 +762,11 @@ def create_text2music_ui(
                 json_data["use_erg_tag"],
                 json_data["use_erg_lyric"],
                 json_data["use_erg_diffusion"],
+                (
+                    json_data["shift"]
+                    if "shift" in json_data
+                    else 3.0
+                ),
                 ", ".join(map(str, json_data["oss_steps"])),
                 (
                     json_data["guidance_scale_text"]

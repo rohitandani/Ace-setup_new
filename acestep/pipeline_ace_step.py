@@ -1396,6 +1396,7 @@ class ACEStepPipeline:
         use_erg_tag: bool = True,
         use_erg_lyric: bool = True,
         use_erg_diffusion: bool = True,
+        shift: float = 3.0,
         oss_steps: str = None,
         guidance_scale_text: float = 0.0,
         guidance_scale_lyric: float = 0.0,
@@ -1586,6 +1587,7 @@ class ACEStepPipeline:
                 repaint_start=repaint_start,
                 repaint_end=repaint_end,
                 src_latents=src_latents,
+                shift=shift,
             )
 
         end_time = time.time()
@@ -1638,6 +1640,7 @@ class ACEStepPipeline:
             "src_audio_path": src_audio_path,
             "edit_target_prompt": edit_target_prompt,
             "edit_target_lyrics": edit_target_lyrics,
+            "shift": shift,
         }
         # save input_params_json
         for output_audio_path in output_paths:
