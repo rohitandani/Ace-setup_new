@@ -8,6 +8,7 @@ Apache 2.0 License
 
 import os
 import click
+from pathlib import Path
 
 from acestep.ui.components import create_main_demo_ui
 from acestep.pipeline_ace_step import ACEStepPipeline
@@ -53,8 +54,12 @@ def main(checkpoint_path, server_name, port, device_id, share, bf16, torch_compi
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(device_id)
 
+    actual_checkpoint_dir = None
+    if checkpoint_path is not None:
+        actual_checkpoint_dir = Path(checkpoint_path)
+
     model_demo = ACEStepPipeline(
-        checkpoint_dir=checkpoint_path,
+        checkpoint_dir=actual_checkpoint_dir,
         dtype="bfloat16" if bf16 else "float32",
         torch_compile=torch_compile,
     )
