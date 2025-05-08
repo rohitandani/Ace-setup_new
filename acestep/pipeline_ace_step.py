@@ -26,6 +26,9 @@ from acestep.schedulers.scheduling_flow_match_euler_discrete import (
 from acestep.schedulers.scheduling_flow_match_heun_discrete import (
     FlowMatchHeunDiscreteScheduler,
 )
+from acestep.schedulers.scheduling_flow_match_res_multistep import (
+    FlowMatchResMultiStepScheduler
+)
 from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3 import (
     retrieve_timesteps,
 )
@@ -828,6 +831,7 @@ class ACEStepPipeline:
         repaint_start=0,
         repaint_end=0,
         src_latents=None,
+        shift=3.0,
     ):
 
         logger.info(
@@ -862,12 +866,17 @@ class ACEStepPipeline:
         if scheduler_type == "euler":
             scheduler = FlowMatchEulerDiscreteScheduler(
                 num_train_timesteps=1000,
-                shift=3.0,
+                shift=shift,
             )
         elif scheduler_type == "heun":
             scheduler = FlowMatchHeunDiscreteScheduler(
                 num_train_timesteps=1000,
-                shift=3.0,
+                shift=shift,
+            )
+        elif scheduler_type == "res_multistep":
+            scheduler = FlowMatchResMultiStepScheduler(
+                num_train_timesteps=1000,
+                shift=shift,
             )
 
         frame_length = int(duration * 44100 / 512 / 8)
@@ -1299,6 +1308,7 @@ class ACEStepPipeline:
                     sample=target_latents,
                     return_dict=False,
                     omega=omega_scale,
+                    generator=random_generators,
                 )[0]
 
         if is_extend:
