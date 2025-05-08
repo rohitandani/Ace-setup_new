@@ -6,8 +6,6 @@ https://github.com/ace-step/ACE-Step
 Apache 2.0 License
 """
 
-
-
 import random
 import time
 import os
@@ -181,7 +179,7 @@ class ACEStepPipeline:
 
     def set_seeds(self, batch_size, manual_seeds=None):
         seeds = None
-        if isinstance(manual_seeds, str):
+        if isinstance(manual_seeds, str) and manual_seeds.strip():  # Check for non-empty string
             seeds = [int(s) for s in manual_seeds.split(",")] if "," in manual_seeds else int(manual_seeds)
         random_generators = [torch.Generator(device=self.device) for _ in range(batch_size)]
         actual_seeds = []
