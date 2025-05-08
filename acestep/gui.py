@@ -9,6 +9,10 @@ Apache 2.0 License
 import os
 import click
 
+
+now_dir = os.getcwd()
+sys.path.append(now_dir)
+
 from acestep.ui.components import create_main_demo_ui
 from acestep.pipeline_ace_step import ACEStepPipeline
 from acestep.data_sampler import DataSampler
