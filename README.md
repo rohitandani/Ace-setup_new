@@ -14,6 +14,9 @@ https://github.com/user-attachments/assets/63c5a633-6ddf-4214-80bf-c486ca28b31c
  Due to the limitations of slower PCs, the demo video includes noticeable gaps (approximately 4 minutes) between the generated songs.  
 
  If your computer struggles to stream songs continuously, increasing the buffer size will result in a longer initial delay but fewer gaps between songs (until the buffer is depleted again).
+
+
+By default the app attempts to load the model file gemma-3-12b-it-abliterated.q4_k_m.gguf from the same directory. However, you can also use alternative LLMs. Note that the quality of generated lyrics will vary depending on the LLM's capabilities.
  
   ---
  
