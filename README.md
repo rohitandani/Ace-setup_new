@@ -27,11 +27,14 @@ For more details on setting up GPU acceleration, refer to the following resource
 [llama-cpp-python-cu128-gemma3 Releases](https://github.com/boneylizard/llama-cpp-python-cu128-gemma3/releases)
  
 ---
-
+### How to Launch the Application
+Once your environment is set up, you can launch the application by running the following command:
+```bash
+python radio_gradio.py
+```
+---
 
 https://github.com/user-attachments/assets/63c5a633-6ddf-4214-80bf-c486ca28b31c
-
-
 
 - The gaps in the demo video are due to the time required for generating each song on slower systems. Faster hardware will reduce these delays.
 
