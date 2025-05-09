@@ -167,7 +167,7 @@ class StationIdentity:
         return cls(name, slogan, color_scheme, logo_style)
 
 class AIRadioStation:
-    def __init__(self, ace_step_pipeline: ACEStepPipeline, model_path: str = "gemma-3-4b-abliterated.Q4_K_M.gguf"): # gemma-3-12b-it-abliterated.q4_k_m .gguf is also good one
+    def __init__(self, ace_step_pipeline: ACEStepPipeline, model_path: str = "gemma-3-12b-it-abliterated.q4_k_m.gguf"):
         """
         Initialize the AI Radio Station with continuous generation.
         
