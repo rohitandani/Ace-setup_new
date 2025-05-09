@@ -641,7 +641,7 @@ class ACEStepPipeline:
         input_params_json = {
             "task": task, "prompt": prompt if task != "edit" else edit_target_prompt,
             "lyrics": lyrics if task != "edit" else edit_target_lyrics, "audio_duration": audio_duration,
-            "infer_step": infer_steps, "guidance_scale": guidance_scale, "scheduler_type": scheduler_type,
+            "infer_step": infer_step, "guidance_scale": guidance_scale, "scheduler_type": scheduler_type,
             "cfg_type": cfg_type, "omega_scale": omega_scale, "guidance_interval": guidance_interval,
             "guidance_interval_decay": guidance_interval_decay, "min_guidance_scale": min_guidance_scale,
             "use_erg_tag": use_erg_tag, "use_erg_lyric": use_erg_lyric, "use_erg_diffusion": use_erg_diffusion,
