@@ -1,3 +1,39 @@
+# Radio Station Feature Fork
+ 
+ This fork introduces a **Radio Station** feature where AI generates continuous radio music. The process involves two key components:  
+ - **LLM**: Generates the lyrics for the songs.  
+ - **ACE**: Composes the music for the generated lyrics.
+ 
+ Due to the limitations of slower PCs, the demo video includes noticeable gaps (approximately 4 minutes) between the generated songs.  
+ 
+  ---
+ 
+ ## Requirements
+ 
+ To run this project, you need the `llama-cpp-python` library. Install it using the following command:
+ 
+ ```bash
+ pip install llama-cpp-python
+ ```
+### CPU vs GPU Usage
+ 
+By default, `llama-cpp-python` uses the CPU for processing, which is suitable if you have limited VRAM. However, setting up GPU acceleration can significantly improve performance.
+ 
+I successfully configured GPU support using:
+- Python 3.11
+- CUDA 12.8  
+ 
+For more details on setting up GPU acceleration, refer to the following resource:  
+[llama-cpp-python-cu128-gemma3 Releases](https://github.com/boneylizard/llama-cpp-python-cu128-gemma3/releases)
+ 
+---
+
+https://github.com/user-attachments/assets/a56d2bef-2a82-4cfa-b6dd-9386f268a064
+
+- The gaps in the demo video are due to the time required for generating each song on slower systems. Faster hardware will reduce these delays.
+
+
+---
 <h1 align="center">ACE-Step</h1>
 <h1 align="center">A Step Towards Music Generation Foundation Model</h1>
 <p align="center">
