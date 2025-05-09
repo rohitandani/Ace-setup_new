@@ -167,7 +167,7 @@ class StationIdentity:
         return cls(name, slogan, color_scheme, logo_style)
 
 class AIRadioStation:
-    def __init__(self, ace_step_pipeline: ACEStepPipeline, model_path: str = "gemma-3-12b-it-abliterated.q4_k_m.gguf"):
+    def __init__(self, ace_step_pipeline: ACEStepPipeline, model_path: str = "E:/ubuntusta/gemma-3-4b-abliterated.Q4_K_M.gguf"):
         """
         Initialize the AI Radio Station with continuous generation.
         
@@ -178,7 +178,8 @@ class AIRadioStation:
         self._pipeline = ace_step_pipeline  # Store the original pipeline reference
         self.random_mode = False 
         self.llm_model_path = model_path
-        self.llm = None  
+        self.llm = None
+        self._first_play = True  
         self.pipeline_args = {
             'checkpoint_dir': ace_step_pipeline.checkpoint_dir,
             'dtype': "bfloat16",
@@ -282,21 +283,16 @@ class AIRadioStation:
                     time.sleep(1)
                     continue
                 
-                # Check buffer state
-                if self.state == RadioState.BUFFERING:
+                # Only check buffer size on first play
+                if self._first_play and self.state == RadioState.BUFFERING:
                     if self.song_queue.qsize() >= self.min_buffer_size:
-                        print(f"Buffer filled with {self.song_queue.qsize()} songs - starting playback!")
+                        print(f"Initial buffer filled with {self.song_queue.qsize()} songs - starting playback!")
                         self.state = RadioState.PLAYING
+                        self._first_play = False
                     else:
-                        print(f"Buffering songs... ({self.song_queue.qsize()}/{self.min_buffer_size})")
-                        time.sleep(1)
+                        print(f"Initial buffering... ({self.song_queue.qsize()}/{self.min_buffer_size})")
+                        time.sleep(0.5)
                         continue
-                
-                # Handle empty queue during playback
-                if self.state == RadioState.PLAYING and self.song_queue.qsize() == 0:
-                    print("Queue empty - returning to buffering state")
-                    self.state = RadioState.BUFFERING
-                    continue
                 
                 # Get and play next song
                 try:
@@ -331,13 +327,17 @@ class AIRadioStation:
                         self._save_state()
                         
                 except queue.Empty:
-                    print("Queue temporarily empty, waiting for more songs...")
-                    time.sleep(1)
+                    if not self._first_play:  # Only show empty queue message after first play
+                        print("Queue empty - waiting for next song...")
+                    time.sleep(0.1)
                     
             except Exception as e:
                 print(f"Error in playback worker: {e}")
                 traceback.print_exc()
                 time.sleep(1)
+        
+        print("Playback worker stopped")
+        self.state = RadioState.STOPPED
         
         print("Playback worker stopped")
         self.state = RadioState.STOPPED
@@ -634,13 +634,13 @@ class AIRadioStation:
         """Background worker for continuous song generation"""
         while not self.stop_event.is_set():
             try:
-                if self.song_queue.qsize() < self.min_buffer_size * 2:
+                # Always generate if queue is below buffer size
+                if self.song_queue.qsize() < self.min_buffer_size:
                     # If in random mode, generate random parameters for each song
                     if self.random_mode:
                         genres = list(THEME_SUGGESTIONS.keys())
                         current_genre = random.choice(genres)
                         current_theme = random.choice(THEME_SUGGESTIONS.get(current_genre, THEME_SUGGESTIONS["default"]))
-                        # current_duration = GENRE_DURATIONS.get(current_genre, GENRE_DURATIONS["default"])
                         current_tempo = GENRE_TEMPOS.get(current_genre, GENRE_TEMPOS["default"])
                         current_intensity = random.choice(["soft", "medium", "high"])
                         current_mood = random.choice(["happy", "sad", "reflective", "upbeat", "chill"])
@@ -664,8 +664,9 @@ class AIRadioStation:
                     # Small delay between generations
                     time.sleep(1)
                 else:
-                    # If buffer is full, wait longer
-                    time.sleep(5)
+                    # If buffer is full, check more frequently
+                    time.sleep(0.5)
+                    
             except Exception as e:
                 print(f"Error in generation worker: {e}")
                 traceback.print_exc()
@@ -693,6 +694,7 @@ class AIRadioStation:
         self.stop_event.set()
         self.playback_paused.clear()
         self.state = RadioState.STOPPED
+        self._first_play = True  # Reset the flag
         
         # Clean up both pipeline and LLM
         self.release_pipeline()
