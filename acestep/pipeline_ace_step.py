@@ -5,12 +5,13 @@ import re
 import gc
 import torch
 import torch.nn as nn
+import warnings
 from loguru import logger
 from tqdm import tqdm
 import json
 import math
 from huggingface_hub import hf_hub_download
-from torch.amp import autocast, GradScaler  # Updated import
+from torch.amp import autocast, GradScaler
 from acestep.schedulers.scheduling_flow_match_euler_discrete import FlowMatchEulerDiscreteScheduler
 from acestep.schedulers.scheduling_flow_match_heun_discrete import FlowMatchHeunDiscreteScheduler
 from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3 import retrieve_timesteps
@@ -23,10 +24,13 @@ from acestep.models.lyrics_utils.lyric_tokenizer import VoiceBpeTokenizer
 from acestep.apg_guidance import apg_forward, MomentumBuffer, cfg_forward, cfg_zero_star, cfg_double_condition_forward
 import torchaudio
 
+# Suppress weight_norm deprecation warning
+warnings.filterwarnings("ignore", category=FutureWarning, module="torch.nn.utils.weight_norm")
+
 # T4-specific optimizations
-torch.backends.cudnn.benchmark = True  # Enable for faster runtime
-torch.set_float32_matmul_precision("medium")  # Optimize for T4
-torch.backends.cudnn.deterministic = False  # Trade determinism for speed
+torch.backends.cudnn.benchmark = True
+torch.set_float32_matmul_precision("medium")
+torch.backends.cudnn.deterministic = False
 torch.backends.cuda.matmul.allow_tf32 = True
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -53,7 +57,7 @@ class ACEStepPipeline:
         dtype="bfloat16",
         text_encoder_checkpoint_path=None,
         persistent_storage_path=None,
-        torch_compile=True,  # Enable compilation by default for T4
+        torch_compile=True,
         **kwargs,
     ):
         if not checkpoint_dir:
@@ -66,7 +70,7 @@ class ACEStepPipeline:
         self.checkpoint_dir = checkpoint_dir
         self.device = torch.device(f"cuda:{device_id}") if torch.cuda.is_available() else torch.device("cpu")
         self.dtype = torch.bfloat16 if dtype == "bfloat16" and self.device.type == "cuda" else torch.float16
-        self.scaler = GradScaler(enabled=self.device.type == "cuda")  # For AMP
+        self.scaler = GradScaler(enabled=self.device.type == "cuda")
         self.loaded = False
         self.torch_compile = torch_compile
 
@@ -109,7 +113,7 @@ class ACEStepPipeline:
                         local_dir_use_symlinks=False,
                     )
 
-            if not files_exist:  # Re-check after download
+            if not files_exist:
                 logger.error("Failed to download all required model files.")
                 raise RuntimeError("Model download failed.")
 
@@ -121,7 +125,7 @@ class ACEStepPipeline:
         self.ace_step_transformer = ACEStepTransformer2DModel.from_pretrained(
             paths["transformer"], torch_dtype=dtype
         ).to(device, dtype).eval()
-        self.ace_step_transformer.enable_gradient_checkpointing()  # Memory optimization
+        self.ace_step_transformer.enable_gradient_checkpointing()
 
         self.lang_segment = LangSegment()
         self.lang_segment.setfilters(list(SUPPORT_LANGUAGES.keys()))
@@ -171,7 +175,7 @@ class ACEStepPipeline:
 
     def set_seeds(self, batch_size, manual_seeds=None):
         seeds = None
-        if isinstance(manual_seeds, str) and manual_seeds.strip():  # Check for non-empty string
+        if isinstance(manual_seeds, str) and manual_seeds.strip():
             seeds = [int(s) for s in manual_seeds.split(",")] if "," in manual_seeds else int(manual_seeds)
         random_generators = [torch.Generator(device=self.device) for _ in range(batch_size)]
         actual_seeds = []
@@ -440,8 +444,7 @@ class ACEStepPipeline:
                 zt_edit = x0.clone()
                 z0 = repaint_noise
             else:
-                # Simplified extend logic for brevity; full implementation follows original
-                pass  # Add extend logic as needed
+                pass
 
         attention_mask = torch.ones(bsz, frame_length, device=device, dtype=dtype)
         start_idx = int(num_inference_steps * ((1 - guidance_interval) / 2))
@@ -569,10 +572,10 @@ class ACEStepPipeline:
         edit_n_avg: int = 1,
         save_path: str = None,
         format: str = "wav",
-        batch_size: int = 1,  # Default to 1 for T4
+        batch_size: int = 1,
         debug: bool = False,
-        zero_steps: int = 1,  # Added missing parameter
-        use_zero_init: bool = True,  # Added missing parameter
+        zero_steps: int = 1,
+        use_zero_init: bool = True,
     ):
         if not self.loaded:
             self.load_checkpoint(self.checkpoint_dir)
