@@ -73,7 +73,7 @@ THEME_SUGGESTIONS = {
     "default": ["love", "dreams", "adventure", "nostalgia"]
 }
 
-# Enums and Data Classes
+
 class RadioState(Enum):
     STOPPED = auto()
     BUFFERING = auto()
