@@ -28,7 +28,10 @@ For more details on setting up GPU acceleration, refer to the following resource
  
 ---
 
-https://github.com/user-attachments/assets/a56d2bef-2a82-4cfa-b6dd-9386f268a064
+
+https://github.com/user-attachments/assets/63c5a633-6ddf-4214-80bf-c486ca28b31c
+
+
 
 - The gaps in the demo video are due to the time required for generating each song on slower systems. Faster hardware will reduce these delays.
 
