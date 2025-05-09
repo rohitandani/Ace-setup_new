@@ -720,7 +720,7 @@ class AIRadioStation:
             return True
         return False
 
-    def generate_song(self, genre: str, theme: str, duration: float = 60.0, 
+    def generate_song(self, genre: str, theme: str, duration: float = 120.0, 
                  tempo: Optional[int] = None, intensity: Optional[str] = None,
                  mood: Optional[str] = None) -> Song:
         """
