@@ -1,11 +1,3 @@
-"""
-ACE-Step: A Step Towards Music Generation Foundation Model
-
-https://github.com/ace-step/ACE-Step
-
-Apache 2.0 License
-"""
-
 import random
 import time
 import os
@@ -18,7 +10,7 @@ from tqdm import tqdm
 import json
 import math
 from huggingface_hub import hf_hub_download
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler  # Updated import
 from acestep.schedulers.scheduling_flow_match_euler_discrete import FlowMatchEulerDiscreteScheduler
 from acestep.schedulers.scheduling_flow_match_heun_discrete import FlowMatchHeunDiscreteScheduler
 from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3 import retrieve_timesteps
@@ -154,7 +146,7 @@ class ACEStepPipeline:
         inputs = self.text_tokenizer(
             texts, return_tensors="pt", padding=True, truncation=True, max_length=text_max_length
         ).to(device)
-        with autocast(enabled=device.type == "cuda"):
+        with autocast(device_type='cuda', enabled=device.type == "cuda"):
             outputs = self.text_encoder_model(**inputs)
         return outputs.last_hidden_state, inputs["attention_mask"]
 
@@ -170,7 +162,7 @@ class ACEStepPipeline:
             for i in range(l_min, l_max):
                 handler = self.text_encoder_model.encoder.block[i].layer[0].SelfAttention.q.register_forward_hook(hook)
                 handlers.append(handler)
-            with autocast(enabled=device.type == "cuda"):
+            with autocast(device_type='cuda', enabled=device.type == "cuda"):
                 outputs = self.text_encoder_model(**inputs)
             for hook in handlers:
                 hook.remove()
@@ -247,7 +239,7 @@ class ACEStepPipeline:
         if return_src_pred:
             src_input = torch.cat([zt_src, zt_src]) if do_classifier_free_guidance else zt_src
             timestep = t.expand(src_input.shape[0])
-            with autocast(enabled=self.device.type == "cuda"):
+            with autocast(device_type='cuda', enabled=self.device.type == "cuda"):
                 noise_pred_src = self.ace_step_transformer(
                     hidden_states=src_input,
                     attention_mask=attention_mask,
@@ -264,7 +256,7 @@ class ACEStepPipeline:
 
         tar_input = torch.cat([zt_tar, zt_tar]) if do_classifier_free_guidance else zt_tar
         timestep = t.expand(tar_input.shape[0])
-        with autocast(enabled=self.device.type == "cuda"):
+        with autocast(device_type='cuda', enabled=self.device.type == "cuda"):
             noise_pred_tar = self.ace_step_transformer(
                 hidden_states=tar_input,
                 attention_mask=attention_mask,
@@ -479,7 +471,7 @@ class ACEStepPipeline:
                 progress = (i - start_idx) / (end_idx - start_idx - 1)
                 current_guidance_scale = guidance_scale - (guidance_scale - min_guidance_scale) * progress * guidance_interval_decay
 
-            with autocast(enabled=device.type == "cuda"):
+            with autocast(device_type='cuda', enabled=device.type == "cuda"):
                 noise_pred = self.ace_step_transformer.decode(
                     hidden_states=latents,
                     attention_mask=attention_mask,
@@ -497,7 +489,12 @@ class ACEStepPipeline:
                         output_length=latents.shape[-1],
                         timestep=t.expand(latents.shape[0]),
                     ).sample
-                    noise_pred = apg_forward(noise_pred, noise_pred_uncond, current_guidance_scale, momentum_buffer) if cfg_type == "apg" else cfg_forward(noise_pred, noise_pred_uncond, current_guidance_scale)
+                    if cfg_type == "cfg_star":
+                        noise_pred = cfg_zero_star(
+                            noise_pred, noise_pred_uncond, current_guidance_scale, i, zero_steps, use_zero_init
+                        )
+                    else:
+                        noise_pred = apg_forward(noise_pred, noise_pred_uncond, current_guidance_scale, momentum_buffer) if cfg_type == "apg" else cfg_forward(noise_pred, noise_pred_uncond, current_guidance_scale)
 
             if is_repaint and i >= n_min:
                 t_i = t / 1000
@@ -515,7 +512,7 @@ class ACEStepPipeline:
 
     def latents2audio(self, latents, target_wav_duration_second=30, sample_rate=48000, save_path=None, format="wav"):
         output_audio_paths = []
-        with autocast(enabled=self.device.type == "cuda"):
+        with autocast(device_type='cuda', enabled=self.device.type == "cuda"):
             _, pred_wavs = self.music_dcae.decode(latents, sr=sample_rate)
         pred_wavs = [pred_wav.cpu().float() for pred_wav in pred_wavs]
         for i in tqdm(range(len(pred_wavs))):
@@ -535,7 +532,7 @@ class ACEStepPipeline:
             return None
         input_audio, sr = self.music_dcae.load_audio(input_audio_path)
         input_audio = input_audio.unsqueeze(0).to(self.device, self.dtype)
-        with autocast(enabled=self.device.type == "cuda"):
+        with autocast(device_type='cuda', enabled=self.device.type == "cuda"):
             latents, _ = self.music_dcae.encode(input_audio, sr=sr)
         return latents
 
@@ -574,6 +571,8 @@ class ACEStepPipeline:
         format: str = "wav",
         batch_size: int = 1,  # Default to 1 for T4
         debug: bool = False,
+        zero_steps: int = 1,  # Added missing parameter
+        use_zero_init: bool = True,  # Added missing parameter
     ):
         if not self.loaded:
             self.load_checkpoint(self.checkpoint_dir)
@@ -628,7 +627,7 @@ class ACEStepPipeline:
         else:
             target_latents = self.text2music_diffusion_process(
                 audio_duration, encoder_text_hidden_states, text_attention_mask, speaker_embeds,
-                lyric_token_idx, lyric_mask, random_generators, infer_step, guidance_scale,
+                lyric_token_idx, lyric_mask, random_generators, infer_steps, guidance_scale,
                 omega_scale, scheduler_type, cfg_type, zero_steps, use_zero_init, guidance_interval,
                 guidance_interval_decay, min_guidance_scale, oss_steps, encoder_text_hidden_states_null,
                 use_erg_lyric, use_erg_diffusion, retake_random_generators, retake_variance,
@@ -647,7 +646,8 @@ class ACEStepPipeline:
             "retake_variance": retake_variance, "guidance_scale_text": guidance_scale_text,
             "guidance_scale_lyric": guidance_scale_lyric, "repaint_start": repaint_start, "repaint_end": repaint_end,
             "edit_n_min": edit_n_min, "edit_n_max": edit_n_max, "edit_n_avg": edit_n_avg, "src_audio_path": src_audio_path,
-            "edit_target_prompt": edit_target_prompt, "edit_target_lyrics": edit_target_lyrics
+            "edit_target_prompt": edit_target_prompt, "edit_target_lyrics": edit_target_lyrics,
+            "zero_steps": zero_steps, "use_zero_init": use_zero_init
         }
 
         for output_audio_path in output_paths:
