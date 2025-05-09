@@ -88,6 +88,7 @@ class Song:
     theme: str
     duration: float
     lyrics: str
+    language: str 
     prompt: str
     audio_path: str
     generation_time: float
@@ -786,6 +787,7 @@ class AIRadioStation:
                     theme=theme,
                     duration=duration,
                     lyrics=lyrics,
+                    language=self.language, 
                     prompt=music_prompt,
                     audio_path=audio_path,
                     generation_time=generation_time,
@@ -833,9 +835,10 @@ def create_radio_interface(radio: AIRadioStation):
             autoplay=True if current_song and radio.state == RadioState.PLAYING else False
         )
 
-        # Format history for display
+
+        # Format history for display - NOW INCLUDING LANGUAGE
         history_data = [
-            [song.title, song.genre, song.theme, f"{song.duration:.1f}s", 
+            [song.title, song.genre, song.theme, song.language, f"{song.duration:.1f}s", 
             time.strftime('%H:%M:%S', time.localtime(song.timestamp))]
             for song in radio.history[-10:]  # Show last 10 songs
         ]
@@ -1047,8 +1050,8 @@ def create_radio_interface(radio: AIRadioStation):
                     playback_pos = gr.Textbox(label="Playback Position")
                     buffer_status = gr.Textbox(label="Buffer Status", visible=False)
                     
-                    gr.Markdown("### Generation Progress")
-                    generation_progress = gr.Slider(0, 100, value=0, interactive=False, elem_classes="progress-bar")
+                    # gr.Markdown("### Generation Progress")
+                    generation_progress = gr.Slider(0, 100, value=0, interactive=False, elem_classes="progress-bar", visible=False)
             
             with gr.Column(scale=2):
                 # Now Playing Display
@@ -1061,7 +1064,7 @@ def create_radio_interface(radio: AIRadioStation):
                             song_info = gr.JSON(label="Song Info")
                         with gr.TabItem("History"):
                             history_display = gr.Dataframe(
-                                headers=["Title", "Genre", "Theme", "Duration", "Generated"],
+                                headers=["Title", "Genre", "Theme", "Language", "Duration", "Generated"],
                                 interactive=False,
                                 label="Recent Songs"
                             )
