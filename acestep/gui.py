@@ -6,7 +6,12 @@ https://github.com/ace-step/ACE-Step
 Apache 2.0 License
 """
 
-import os
+import os, sys
+
+now_dir = os.getcwd()
+sys.path.append(now_dir)
+
+
 import click
 
 from acestep.ui.components import create_main_demo_ui
