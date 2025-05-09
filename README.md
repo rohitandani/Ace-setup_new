@@ -1,3 +1,10 @@
+
+---
+
+https://github.com/user-attachments/assets/63c5a633-6ddf-4214-80bf-c486ca28b31c
+
+- The gaps in the demo video are due to the time required for generating each song on slower systems. Faster hardware will reduce these delays.
+
 # Radio Station Feature Fork
  
  This fork introduces a **Radio Station** feature where AI generates continuous radio music. The process involves two key components:  
@@ -5,6 +12,8 @@
  - **ACE**: Composes the music for the generated lyrics.
  
  Due to the limitations of slower PCs, the demo video includes noticeable gaps (approximately 4 minutes) between the generated songs.  
+
+ If your computer struggles to stream songs continuously, increasing the buffer size will result in a longer initial delay but fewer gaps between songs (until the buffer is depleted again).
  
   ---
  
@@ -32,13 +41,6 @@ Once your environment is set up, you can launch the application by running the f
 ```bash
 python radio_gradio.py
 ```
----
-
-https://github.com/user-attachments/assets/63c5a633-6ddf-4214-80bf-c486ca28b31c
-
-- The gaps in the demo video are due to the time required for generating each song on slower systems. Faster hardware will reduce these delays.
-
-
 ---
 <h1 align="center">ACE-Step</h1>
 <h1 align="center">A Step Towards Music Generation Foundation Model</h1>
