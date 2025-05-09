@@ -19,11 +19,11 @@
  
 By default, `llama-cpp-python` uses the CPU for processing, which is suitable if you have limited VRAM. However, setting up GPU acceleration can significantly improve performance.
  
-I successfully configured GPU support using:
+I successfully configured GPU support (on Windows) using:
 - Python 3.11
 - CUDA 12.8  
  
-For more details on setting up GPU acceleration, refer to the following resource:  
+For more details on setting up GPU acceleration (on Windows), refer to the following resource:  
 [llama-cpp-python-cu128-gemma3 Releases](https://github.com/boneylizard/llama-cpp-python-cu128-gemma3/releases)
  
 ---
