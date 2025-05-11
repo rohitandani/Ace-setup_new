@@ -1,9 +1,12 @@
 
 ---
 
-https://github.com/user-attachments/assets/63c5a633-6ddf-4214-80bf-c486ca28b31c
 
-- The gaps in the demo video are due to the time required for generating each song on slower systems. Faster hardware will reduce these delays.
+https://github.com/user-attachments/assets/09613b89-41cf-4409-9050-d8cb5c9e7b49
+
+
+
+UPDATE 11/5/2025: Major memory optimization achieved! RTX 3060 12GB can now stream songs continuously.
 
 # Radio Station Feature Fork
  
@@ -11,7 +14,6 @@ https://github.com/user-attachments/assets/63c5a633-6ddf-4214-80bf-c486ca28b31c
  - **LLM**: Generates the lyrics for the songs.  
  - **ACE**: Composes the music for the generated lyrics.
  
- Due to the limitations of slower PCs, the demo video includes noticeable gaps (approximately 4 minutes) between the generated songs.  
 
  If your computer struggles to stream songs continuously, increasing the buffer size will result in a longer initial delay but fewer gaps between songs (until the buffer is depleted again).
 
