@@ -342,7 +342,7 @@ class AIRadioStation:
                 time.sleep(1)  # Prevent crash loops
 
     def _play_song(self, song):
-        """Optimized song playback without delays"""
+        """Optimized song playback with proper tracking"""
         self.current_song = song
         self.history.append(song)
         
@@ -350,13 +350,20 @@ class AIRadioStation:
             f"Title: {song.title}\n"
             f"Duration: {song.duration:.1f}s\n")
         
-        # Playback without chunked sleeping
+        # Reset elapsed time
+        self.current_song_elapsed = 0.0
+        
+        # Playback tracking
         start_time = time.time()
         while (time.time() - start_time) < song.duration:
             if self.stop_event.is_set() or self.playback_paused.is_set():
                 break
             time.sleep(0.1)  # Smaller sleep increments
             self.current_song_elapsed = time.time() - start_time
+        
+        # Ensure we mark the song as complete if not interrupted
+        if not (self.stop_event.is_set() or self.playback_paused.is_set()):
+            self.current_song_elapsed = song.duration
 
     def _cleanup_cache(self):
         """More aggressive VRAM cleanup"""
@@ -865,9 +872,17 @@ def create_radio_interface(radio: AIRadioStation):
         
         # Format audio for playback if playing
         song_audio = gr.Audio(
-            value=current_song.audio_path if current_song and radio.state == RadioState.PLAYING else None,
+            value=current_song.audio_path if current_song else None,
             autoplay=True if current_song and radio.state == RadioState.PLAYING else False
         )
+
+        # Calculate playback progress based on actual elapsed time
+        if current_song and radio.state == RadioState.PLAYING:
+            playback_percent = min(100, (radio.current_song_elapsed / current_song.duration) * 100)
+            playback_time = f"{int(radio.current_song_elapsed)}s / {int(current_song.duration)}s"
+        else:
+            playback_percent = 0
+        playback_time = "0s / 0s"
 
 
         # Format history for display - NOW INCLUDING LANGUAGE
@@ -1025,7 +1040,7 @@ def create_radio_interface(radio: AIRadioStation):
                         )
                         theme_input = gr.Dropdown(
                             choices=THEME_SUGGESTIONS["pop"],
-                            value="love",
+                            value="summer love",
                             label="Station Theme"
                         )
                         duration_input = gr.Slider(30, 600, value=120, label="Song Duration (seconds)")
@@ -1068,7 +1083,7 @@ def create_radio_interface(radio: AIRadioStation):
                 
                 # Status Display
                 with gr.Group():
-                    station_output = gr.Textbox(label="Current Station", elem_classes="station-header")
+                    station_output = gr.Textbox(label="Current Station", elem_classes="current_station")
                     status_output = gr.Textbox(label="Status")
                     queue_size = gr.Number(label="Songs in Queue", visible=False)
                     state_display = gr.Textbox(label="Player State", visible=False)
@@ -1081,7 +1096,7 @@ def create_radio_interface(radio: AIRadioStation):
             with gr.Column(scale=2):
                 # Now Playing Display
                 with gr.Group():
-                    current_song_output = gr.Audio(label="Now Playing", interactive=False, autoplay=False)
+                    current_song_output = gr.Audio(label="Now Playing", interactive=False, autoplay=True, visible=True)
                     with gr.Tabs():
                         with gr.TabItem("Lyrics"):
                             lyrics_output = gr.Textbox(label="Lyrics", lines=10, interactive=False)
