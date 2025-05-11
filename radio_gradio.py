@@ -661,13 +661,15 @@ class AIRadioStation:
 
     def _generate_song_worker(self, genre: str, theme: str, duration: float):
         """Background worker for continuous song generation"""
+        first_song_in_random_mode = True  # Track if this is the first song in random mode
+        
         while not self.stop_event.is_set():
             try:
                 self.clean_all_memory()
                 # Always generate if queue is below buffer size
                 if self.song_queue.qsize() < self.min_buffer_size:
-                    # If in random mode, generate random parameters for each song
-                    if self.random_mode:
+                    # If in random mode, generate random parameters for each song AFTER the first one
+                    if self.random_mode and not first_song_in_random_mode:
                         genres = list(THEME_SUGGESTIONS.keys())
                         current_genre = random.choice(genres)
                         current_theme = random.choice(THEME_SUGGESTIONS.get(current_genre, THEME_SUGGESTIONS["default"]))
@@ -683,7 +685,9 @@ class AIRadioStation:
                             mood=current_mood
                         )
                     else:
+                        # Use the selected parameters for the first song
                         song = self.generate_song(genre, theme, duration)
+                        first_song_in_random_mode = False  # After first song, we can randomize
                         
                     self.song_queue.put(song)
                     self.playlist.append(song)
