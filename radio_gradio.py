@@ -967,21 +967,10 @@ def create_radio_interface(radio: AIRadioStation):
             *update_display()
         )
     
-    def stop_radio(self):
+    def stop_radio():
         """Stop all radio operations and clean up resources"""
-        self.stop_event.set()
-        self.playback_paused.clear()
-        self.state = RadioState.STOPPED
-        
-        # Clean up pipeline
-        self.release_pipeline()
-        
-        if self.generation_thread and self.generation_thread.is_alive():
-            self.generation_thread.join(timeout=5)
-        if self.playback_thread and self.playback_thread.is_alive():
-            self.playback_thread.join(timeout=5)
-        
-        self._save_state()
+        radio.stop_radio()
+        return update_display()
 
     def pause_playback():
         """Pause radio playback"""
