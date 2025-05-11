@@ -73,7 +73,7 @@ THEME_SUGGESTIONS = {
     "default": ["love", "dreams", "adventure", "nostalgia"]
 }
 
-
+# Enums and Data Classes
 class RadioState(Enum):
     STOPPED = auto()
     BUFFERING = auto()
@@ -167,7 +167,7 @@ class StationIdentity:
         return cls(name, slogan, color_scheme, logo_style)
 
 class AIRadioStation:
-    def __init__(self, ace_step_pipeline: ACEStepPipeline, model_path: str = "gemma-3-12b-it-abliterated.q4_k_m.gguf"):
+    def __init__(self, ace_step_pipeline: ACEStepPipeline, model_path: str = "E:/ubuntusta/gemma-3-4b-abliterated.Q4_K_M.gguf"):
         """
         Initialize the AI Radio Station with continuous generation.
         
@@ -198,7 +198,7 @@ class AIRadioStation:
         self.playback_thread = None
         self.playback_paused = threading.Event()
         self.max_history_size = 50
-        self.cache_cleanup_interval = 300
+        self.cache_cleanup_interval = 60
         self.last_cache_cleanup = time.time()
         self.language = "English"
         self.tempo = 120
@@ -222,13 +222,16 @@ class AIRadioStation:
 
     def load_llm(self):
         """Load the LLM model into memory"""
+        self.release_pipeline()
+        self.unload_llm()
+        gc.collect()
         if self.llm is None:
             print("Loading LLM model...")
             try:
                 from llama_cpp import Llama
                 self.llm = Llama(
                     model_path=self.llm_model_path,
-                    n_ctx=4048,
+                    n_ctx=2048,
                     n_threads=4,
                     n_gpu_layers=-1,
                 )
@@ -247,100 +250,122 @@ class AIRadioStation:
             gc.collect()
 
     def get_pipeline(self):
-        """Lazily initialize the pipeline when needed"""
-        if self.current_pipeline is None:
-            print("Initializing pipeline...")
-            self.current_pipeline = ACEStepPipeline(**self.pipeline_args)
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        print(f"Pipeline dtype: {self.current_pipeline.dtype if self.current_pipeline else 'Not initialized'}")
+        """Always create a fresh pipeline"""
+        if self.current_pipeline is not None:
+            self.release_pipeline()
+        print("Initializing fresh pipeline...")
+        self.current_pipeline = ACEStepPipeline(**self.pipeline_args)
         return self.current_pipeline
 
     def release_pipeline(self):
-        """Clean up pipeline resources"""
+        """Clean up pipeline resources thoroughly"""
         if self.current_pipeline is not None:
-            print("Releasing pipeline...")
+            print("Releasing pipeline resources...")
+            
+            # First delete ACE-specific resources
+            if hasattr(self.current_pipeline, 'ace_model'):
+                if hasattr(self.current_pipeline.ace_model, 'cpu'):
+                    try:
+                        self.current_pipeline.ace_model.cpu()
+                    except:
+                        pass
+                del self.current_pipeline.ace_model
+                
+            # Now delete the full pipeline
             del self.current_pipeline
             self.current_pipeline = None
+            
+            # Force cleanup
             if torch.cuda.is_available():
+                torch.cuda.synchronize()
                 torch.cuda.empty_cache()
             gc.collect()
 
+    def clean_all_memory(self):
+        """Complete memory cleanup for both pipeline and LLM"""
+        # First unload LLM if loaded
+        self.unload_llm()
+        
+        # Then release pipeline resources
+        self.release_pipeline()
+        
+        # Force synchronization and cleanup
+        if torch.cuda.is_available():
+            try:
+                torch.cuda.synchronize()
+                torch.cuda.empty_cache()
+            except:
+                pass
+        
+        # Multiple GC passes
+        for _ in range(3):
+            gc.collect()
+
+
+
     def _playback_worker(self):
-        """Background worker for continuous playback"""
+        """Optimized playback worker with minimal delays"""
         self.state = RadioState.BUFFERING
         print("Playback worker started - buffering songs...")
         
+        last_cache_clean = time.time()
+        buffer_check_interval = 0.1  # More responsive checking
+        
         while not self.stop_event.is_set():
             try:
-                # Clean cache periodically
-                if time.time() - self.last_cache_cleanup > self.cache_cleanup_interval:
+                # Cache cleanup (non-blocking check)
+                now = time.time()
+                if now - last_cache_clean > self.cache_cleanup_interval:
                     self._cleanup_cache()
+                    last_cache_clean = now
                 
                 # Handle paused state
                 if self.playback_paused.is_set():
                     self.state = RadioState.PAUSED
-                    time.sleep(1)
+                    time.sleep(0.1)  # Shorter sleep
                     continue
                 
-                # Only check buffer size on first play
-                if self._first_play and self.state == RadioState.BUFFERING:
+                # First play buffer check
+                if self._first_play:
                     if self.song_queue.qsize() >= self.min_buffer_size:
                         print(f"Initial buffer filled with {self.song_queue.qsize()} songs - starting playback!")
                         self.state = RadioState.PLAYING
                         self._first_play = False
                     else:
-                        print(f"Initial buffering... ({self.song_queue.qsize()}/{self.min_buffer_size})")
-                        time.sleep(0.5)
+                        # Non-blocking yield instead of sleep
+                        time.sleep(buffer_check_interval)
                         continue
                 
-                # Get and play next song
+                # Main playback logic
                 try:
-                    song = self.song_queue.get(block=False)
-                    self.current_song = song
-                    self.history.append(song)
-                    self.current_song_start_time = time.time()
-                    self.current_song_elapsed = 0.0
+                    song = self.song_queue.get_nowait()  # Non-blocking get
+                    self._play_song(song)
                     
-                    # Enforce history size limit
-                    if len(self.history) > self.max_history_size:
-                        self.history = self.history[-self.max_history_size:]
-                    
-                    print(f"\n=== Now Playing ===\n"
-                        f"Title: {song.title}\n"
-                        f"Artist: {song.artist}\n"
-                        f"Duration: {song.duration:.1f}s\n")
-                    
-                    # Play the song
-                    remaining_time = song.duration
-                    while remaining_time > 0 and not self.stop_event.is_set() and not self.playback_paused.is_set():
-                        chunk_time = min(0.1, remaining_time)
-                        time.sleep(chunk_time)
-                        remaining_time -= chunk_time
-                        self.current_song_elapsed = song.duration - remaining_time
-                    
-                    if self.playback_paused.is_set():
-                        continue
-                        
-                    # Save state periodically
-                    if len(self.history) % 5 == 0:
-                        self._save_state()
-                        
                 except queue.Empty:
-                    if not self._first_play:  # Only show empty queue message after first play
-                        print("Queue empty - waiting for next song...")
-                    time.sleep(0.1)
+                    # Tiny sleep when empty to prevent CPU spin
+                    time.sleep(0.05)
                     
             except Exception as e:
-                print(f"Error in playback worker: {e}")
+                print(f"Playback error: {e}")
                 traceback.print_exc()
-                time.sleep(1)
+                time.sleep(1)  # Prevent crash loops
+
+    def _play_song(self, song):
+        """Optimized song playback without delays"""
+        self.current_song = song
+        self.history.append(song)
         
-        print("Playback worker stopped")
-        self.state = RadioState.STOPPED
+        print(f"\n=== Now Playing ===\n"
+            f"Title: {song.title}\n"
+            f"Duration: {song.duration:.1f}s\n")
         
-        print("Playback worker stopped")
-        self.state = RadioState.STOPPED
+        # Playback without chunked sleeping
+        start_time = time.time()
+        while (time.time() - start_time) < song.duration:
+            if self.stop_event.is_set() or self.playback_paused.is_set():
+                break
+            time.sleep(0.1)  # Smaller sleep increments
+            self.current_song_elapsed = time.time() - start_time
 
     def _cleanup_cache(self):
         """More aggressive VRAM cleanup"""
@@ -348,7 +373,10 @@ class AIRadioStation:
             torch.cuda.synchronize()
             torch.cuda.empty_cache()
         
-        gc.collect()
+        # Reset the pipeline completely
+        if self.current_pipeline is not None:
+            del self.current_pipeline
+            self.current_pipeline = None
         
         # Force Python to release memory
         for _ in range(3):
@@ -569,13 +597,14 @@ class AIRadioStation:
         if self.llm_model_path:  # Only try if we have a model path
             try:
                 # Load model right before use
+                self.release_pipeline()
                 self.load_llm()
                 
                 if self.llm:  # Check if load was successful
                     print("Using LLM for lyric generation...")
                     output = self.llm(
                         prompt,
-                        max_tokens=1500,
+                        max_tokens=700,
                         temperature=0.7,
                         top_p=0.9,
                         repeat_penalty=1.1,
@@ -634,6 +663,7 @@ class AIRadioStation:
         """Background worker for continuous song generation"""
         while not self.stop_event.is_set():
             try:
+                self.clean_all_memory()
                 # Always generate if queue is below buffer size
                 if self.song_queue.qsize() < self.min_buffer_size:
                     # If in random mode, generate random parameters for each song
@@ -673,7 +703,10 @@ class AIRadioStation:
                 # Ensure cleanup on error
                 self.unload_llm()
                 # Longer delay on error
-                time.sleep(10)
+                time.sleep(5)
+            finally:
+                # Always clean after generation attempt
+                self.clean_all_memory()
 
     def _save_state(self):
         """Save current radio state to disk"""
@@ -724,8 +757,8 @@ class AIRadioStation:
         return False
 
     def generate_song(self, genre: str, theme: str, duration: float = 120.0, 
-                 tempo: Optional[int] = None, intensity: Optional[str] = None,
-                 mood: Optional[str] = None) -> Song:
+             tempo: Optional[int] = None, intensity: Optional[str] = None,
+             mood: Optional[str] = None) -> Song:
         """
         Generate a complete song with lyrics and music.
         
@@ -748,10 +781,12 @@ class AIRadioStation:
         song = None
         
         try:
-            # Stage 1: Generate lyrics
+            # Stage 1: Generate 
+            self.clean_all_memory()
             print("\n[1/3] Generating lyrics...")
             self.generation_progress = 0.33
             lyrics, music_prompt = self.generate_lyrics_and_prompt(genre, theme, self.language)
+            self.clean_all_memory()
             
             # Stage 2: Generate music
             print("\n[2/3] Generating music with ACEStepPipeline...")
@@ -762,17 +797,19 @@ class AIRadioStation:
             pipeline = self.get_pipeline()
             
             try:
-                results = pipeline(
-                    audio_duration=duration,
-                    prompt=music_prompt,
-                    lyrics=lyrics,
-                    infer_step=27,
-                    guidance_scale=15.0,
-                    scheduler_type="euler",
-                    cfg_type="apg",
-                    omega_scale=10.0,
-                    batch_size=1
-                )
+                # Add torch.inference_mode() here to disable gradient tracking
+                with torch.inference_mode():
+                    results = pipeline(
+                        audio_duration=duration,
+                        prompt=music_prompt,
+                        lyrics=lyrics,
+                        infer_step=27,
+                        guidance_scale=15.0,
+                        scheduler_type="euler",
+                        cfg_type="apg",
+                        omega_scale=10.0,
+                        batch_size=1
+                    )
                 
                 audio_path = results[0]
                 metadata = results[-1]
@@ -805,7 +842,7 @@ class AIRadioStation:
                 raise
             finally:
                 # Always release pipeline resources after use
-                self.release_pipeline()
+                self.clean_all_memory()
                 
         except Exception as e:
             print(f"Error during song generation: {e}")
@@ -825,7 +862,7 @@ class AIRadioStation:
 
 def create_radio_interface(radio: AIRadioStation):
     """Create Gradio interface for the AI Radio Station"""
-    vram_display = gr.JSON(label="VRAM Usage")
+    # vram_display = gr.JSON(label="VRAM Usage")
     
     def update_display():
         """Update the UI display with current radio status"""
@@ -889,7 +926,7 @@ def create_radio_interface(radio: AIRadioStation):
                 from llama_cpp import Llama
                 radio.llm = Llama(
                     model_path=model_path,
-                    n_ctx=4048,
+                    n_ctx=2048,
                     n_threads=4,
                     n_gpu_layers=-1,
                 )
@@ -983,7 +1020,8 @@ def create_radio_interface(radio: AIRadioStation):
         .progress-bar {
             margin-top: 5px;
         }
-    """) as demo:
+    """
+    ) as demo:
         gr.Markdown("# 🎵 AI Radio Station")
         gr.Markdown("Continuous AI-powered music generation using ACE")
         
