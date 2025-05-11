@@ -52,10 +52,9 @@ python radio_gradio.py
     <a href="https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B">Hugging Face</a> |
     <a href="https://modelscope.cn/models/ACE-Step/ACE-Step-v1-3.5B">ModelScope</a> |
     <a href="https://huggingface.co/spaces/ACE-Step/ACE-Step">Space Demo</a> |
-     <a href="https://discord.gg/rjAZz2xBdG">Discord</a> 
+    <a href="https://discord.gg/PeWDxrkdj7">Discord</a> 
 </p>
 
----
 <p align="center">
     <img src="./assets/orgnization_logos.png" width="100%" alt="StepFun Logo">
 </p>
@@ -78,6 +77,20 @@ Rather than building yet another end-to-end text-to-music pipeline, our vision i
 
 
 ## 📢 News and Updates
+- 🔥 **2025.05.10:** Memory Optimization Update
+  - Reduced Max VRAM to 8GB, making it more compatible with consumer devices
+  - Recommended launch options:
+    ```bash
+    acestep --torch_compile true --cpu_offload true --overlapped_decode true
+    ```
+
+![image](./assets/cpu_offload_performance.png)
+
+- 📢 **2025.05.09:** Graidio Demo support Audio2Audio. ComfyUI: [Ace_Step_4x_a2a.json](./assets/Ace_Step_4x_a2a.json)
+<p align="center">
+    <img src="assets/audio2audio_demo.gif" alt="Audio2Audio Demo" width="50%">
+    <img src="assets/audio2audio_ComfyUI.png" alt="Audio2Audio ComfyUI" width="40%">
+</p>
 
 - 🚀 **2025.05.08:** [ComfyUI_ACE-Step](https://t.co/GeRSTrIvn0) node is now available! Explore the power of ACE-Step within ComfyUI. 🎉
 ![image](https://github.com/user-attachments/assets/0a13d90a-9086-47ee-abab-976bad20fa7c)
@@ -307,6 +320,8 @@ If you intend to integrate ACE-Step as a library into your own Python projects, 
 - `--share`: Enable Gradio sharing link (default: False)
 - `--bf16`: Use bfloat16 precision for faster inference (default: True)
 - `--torch_compile`: Use `torch.compile()` to optimize the model, speeding up inference (default: False). **Not Supported on Windows**
+- `--cpu_offload`: Offload model weights to CPU to save GPU memory (default: False)
+- `--overlapped_decode`: Use overlapped decoding to speed up inference (default: False)
 
 ## 📱 User Interface Guide
 
@@ -393,6 +408,43 @@ Example dataset entry:
 		"analysis": "pop, ballad, piano, guitar, slow tempo, romantic, emotional"
 	}
 }
+```
+How to get an audio's reception? 
+
+You can use `Qwen-Omini` https://chat.qwen.ai/ to describe an audio.
+
+Here we share the prompt we used.
+
+```python
+sys_prompt_without_tag = """Analyze the input audio and generate 6 description variants. Each variant must be <200 characters. Follow these exact definitions:
+
+1.  `simplified`: Use only one most representative tag from the valid set.
+2.  `expanded`: Broaden valid tags to include related sub-genres/techniques.
+3.  `descriptive`: Convert tags into a sensory-rich sentence based *only on the sound*. DO NOT transcribe or reference the lyrics.
+4.  `synonyms`: Replace tags with equivalent terms (e.g., 'strings' → 'orchestral').
+5.  `use_cases`: Suggest practical applications based on audio characteristics.
+6.  `analysis`: Analyze the audio's genre, instruments, tempo, and mood **based strictly on the audible musical elements**. Technical breakdown in specified format.
+    *   For the `instruments` list: **Only include instruments that are actually heard playing in the audio recording.** **Explicitly ignore any instruments merely mentioned or sung about in the lyrics.** Cover all audibly present instruments.
+7. `lyrical_rap_check`: if the audio is lyrical rap
+**Strictly ignore any information derived solely from the lyrics when performing the analysis, especially for identifying instruments.**
+
+**Output Format:**
+```json
+{
+  "simplified": <str>,
+  "expanded": <str>,
+  "descriptive": <str>,
+  "synonyms": <str>,
+  "use_cases": <str>,
+  "analysis": {
+    "genre": <str list>,
+    "instruments": <str list>,
+    "tempo": <str>,
+    "mood": <str list>
+  },
+  "lyrical_rap_check": <bool>
+}
+"""
 ```
 
 ### Training Parameters
