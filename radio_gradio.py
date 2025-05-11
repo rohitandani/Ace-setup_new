@@ -207,18 +207,7 @@ class AIRadioStation:
         self.generation_progress = 0.0
         self.current_song_elapsed = 0.0
         
-        # Initialize LLM for lyric generation
-        try:
-            from llama_cpp import Llama
-            self.llm = Llama(
-                model_path=model_path,
-                n_ctx=4048,
-                n_threads=4,
-                n_gpu_layers=-1,
-            )
-        except ImportError:
-            print("Warning: llama-cpp-python not installed, using simple lyric generation")
-            self.llm = None
+
 
     def load_llm(self):
         """Load the LLM model into memory"""
@@ -234,6 +223,8 @@ class AIRadioStation:
                     n_ctx=2048,
                     n_threads=4,
                     n_gpu_layers=-1,
+                    seed = -1 # random seed for random lyrics 
+
                 )
             except ImportError:
                 print("Warning: llama-cpp-python not installed, using simple lyric generation")
@@ -933,6 +924,7 @@ def create_radio_interface(radio: AIRadioStation):
                     n_ctx=2048,
                     n_threads=4,
                     n_gpu_layers=-1,
+                    seed = -1 # random seed for random lyrics 
                 )
                 print(f"Loaded new LLM model from: {model_path}")
             except Exception as e:
