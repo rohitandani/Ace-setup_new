@@ -263,13 +263,7 @@ class AIRadioStation:
         for _ in range(3):
             gc.collect()
 
-    def print_memory_stats(self):
-        """Debug memory usage"""
-        if torch.cuda.is_available():
-            print(f"\nVRAM Usage:")
-            print(f"Allocated: {torch.cuda.memory_allocated()/1024**2:.2f} MB")
-            print(f"Cached: {torch.cuda.memory_reserved()/1024**2:.2f} MB")
-            print(f"Max Allocated: {torch.cuda.max_memory_allocated()/1024**2:.2f} MB\n")
+
 
     def _playback_worker(self):
         """Simplified playback worker that switches songs when they end"""
@@ -321,7 +315,10 @@ class AIRadioStation:
     def _play_song(self, song):
         """Simplified song playback - just play the full song without tracking time"""
         self.current_song = song
-        self.history.append(song)
+        # Enforce max history size
+        if len(self.history) > self.max_history_size:
+            # Remove oldest song(s) - could do more than one if needed
+            self.history.pop(0)
         
         print(f"\n=== Now Playing ===\n"
             f"Title: {song.title}\n"
@@ -651,7 +648,6 @@ class AIRadioStation:
         while not self.stop_event.is_set():
             try:
                 self.clean_all_memory()
-                self.print_memory_stats()  
                 # Always generate if queue is below buffer size
                 if self.song_queue.qsize() < self.min_buffer_size:
                     # Handle random language selection independently of random_mode
@@ -1052,7 +1048,7 @@ def create_radio_interface(radio: AIRadioStation):
                             value="English",
                             label="Lyrics Language"
                         )
-                        max_history = gr.Slider(10, 200, value=50, step=10, label="Max History Size")
+                        max_history = gr.Slider(10, 200, value=12, step=10, label="Max History Size")
                         tempo_input = gr.Slider(60, 200, value=120, step=5, label="Tempo (BPM)")
                         intensity_input = gr.Dropdown(
                             choices=["soft", "medium", "high"],
