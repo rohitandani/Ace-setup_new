@@ -209,9 +209,14 @@ class AIRadioStation:
             gc.collect()
 
     def get_pipeline(self):
-        """Always create a fresh pipeline"""
+        """Always create a fresh pipeline with proper cleanup"""
         if self.current_pipeline is not None:
-            self.release_pipeline()
+            self.release_pipeline()  # Ensure previous pipeline is cleaned up
+        
+        # Force cleanup before creating new pipeline
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
         print("Initializing fresh pipeline...")
         self.current_pipeline = ACEStepPipeline(**self.pipeline_args)
         return self.current_pipeline
@@ -241,26 +246,30 @@ class AIRadioStation:
             gc.collect()
 
     def clean_all_memory(self):
-        """Complete memory cleanup for both pipeline and LLM"""
+        """More aggressive memory cleanup"""
         # First unload LLM if loaded
         self.unload_llm()
         
         # Then release pipeline resources
         self.release_pipeline()
         
-        # Force synchronization and cleanup
+        # Force CUDA cleanup with synchronization
         if torch.cuda.is_available():
-            try:
-                torch.cuda.synchronize()
-                torch.cuda.empty_cache()
-            except:
-                pass
+            torch.cuda.synchronize()  # Wait for all kernels to finish
+            torch.cuda.empty_cache()  # Clear cache
+            torch.cuda.reset_peak_memory_stats()  # Reset tracking
         
         # Multiple GC passes
         for _ in range(3):
             gc.collect()
 
-
+    def print_memory_stats(self):
+        """Debug memory usage"""
+        if torch.cuda.is_available():
+            print(f"\nVRAM Usage:")
+            print(f"Allocated: {torch.cuda.memory_allocated()/1024**2:.2f} MB")
+            print(f"Cached: {torch.cuda.memory_reserved()/1024**2:.2f} MB")
+            print(f"Max Allocated: {torch.cuda.max_memory_allocated()/1024**2:.2f} MB\n")
 
     def _playback_worker(self):
         """Simplified playback worker that switches songs when they end"""
@@ -642,6 +651,7 @@ class AIRadioStation:
         while not self.stop_event.is_set():
             try:
                 self.clean_all_memory()
+                self.print_memory_stats()  
                 # Always generate if queue is below buffer size
                 if self.song_queue.qsize() < self.min_buffer_size:
                     # Handle random language selection independently of random_mode
@@ -692,7 +702,7 @@ class AIRadioStation:
                 print(f"Error in generation worker: {e}")
                 traceback.print_exc()
                 # Ensure cleanup on error
-                self.unload_llm()
+                self.clean_all_memory()
                 # Longer delay on error
                 time.sleep(5)
             finally:
@@ -731,14 +741,6 @@ class AIRadioStation:
         
         self._save_state()
 
-
-    def resume_radio(self):
-        """Resume paused playback"""
-        if self.state == RadioState.PAUSED:
-            self.playback_paused.clear()
-            self.state = RadioState.PLAYING
-            return True
-        return False
 
     def generate_song(self, genre: str, theme: str, duration: float = 120.0, 
                     tempo: Optional[int] = None, intensity: Optional[str] = None,
@@ -967,7 +969,20 @@ def create_radio_interface(radio: AIRadioStation):
     def stop_radio():
         """Stop all radio operations and clean up resources"""
         radio.stop_radio()
-        return update_display()
+            # Return values that will stop the Gradio player
+        return [
+            "",  # station_output
+            "STOPPED",  # status_output
+            0,  # queue_size
+            "STOPPED",  # state_display
+            None,  # current_song_output (None stops playback)
+            "No song playing",  # lyrics_output
+            {},  # song_info
+            "",  # playback_pos
+            "Buffer: 0 songs",  # buffer_status
+            0,  # generation_progress
+            []  # history_display
+        ]
 
     
     def resume_playback():
@@ -1053,7 +1068,6 @@ def create_radio_interface(radio: AIRadioStation):
                     with gr.Row():
                         start_btn = gr.Button("Start Radio", elem_classes="custom-btn")
                         stop_btn = gr.Button("Stop", elem_classes="custom-btn")
-                        resume_btn = gr.Button("Resume", elem_classes="custom-btn")
                     
                     with gr.Row():
                         refresh_btn = gr.Button("Refresh Display")
@@ -1115,11 +1129,6 @@ def create_radio_interface(radio: AIRadioStation):
             outputs=output_components
         )
         
-        
-        resume_btn.click(
-            fn=resume_playback,
-            outputs=output_components
-        )
         
         refresh_btn.click(
             fn=update_display,
