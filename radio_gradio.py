@@ -567,7 +567,8 @@ class AIRadioStation:
                             top_p=0.9,
                             repeat_penalty=1.1,
                             stop=["[End]", "\n\n\n"],
-                            echo=False
+                            echo=False,
+                            seed=-1
                         )
                         
                         lyrics = output["choices"][0]["text"].strip()
