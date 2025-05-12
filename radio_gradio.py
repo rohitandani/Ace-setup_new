@@ -315,6 +315,7 @@ class AIRadioStation:
     def _play_song(self, song):
         """Simplified song playback - just play the full song without tracking time"""
         self.current_song = song
+        self.history.append(song)
         # Enforce max history size
         if len(self.history) > self.max_history_size:
             # Remove oldest song(s) - could do more than one if needed
@@ -727,8 +728,7 @@ class AIRadioStation:
         self._first_play = True  # Reset the flag
         
         # Clean up both pipeline and LLM
-        self.release_pipeline()
-        self.unload_llm()
+        self.clean_all_memory()
         
         if self.generation_thread and self.generation_thread.is_alive():
             self.generation_thread.join(timeout=5)
@@ -981,10 +981,6 @@ def create_radio_interface(radio: AIRadioStation):
         ]
 
     
-    def resume_playback():
-        """Resume radio playback"""
-        radio.resume_radio()
-        return update_display()
     
     def update_theme_suggestions(genre):
         """Update theme suggestions based on selected genre"""
