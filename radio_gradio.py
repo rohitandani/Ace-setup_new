@@ -4,7 +4,6 @@ import time
 import json
 import random
 import gradio as gr
-import requests
 import traceback
 import threading
 import queue
@@ -99,8 +98,6 @@ class Song:
 class StationIdentity:
     name: str
     slogan: str
-    color_scheme: tuple
-    logo_style: str
     
     @classmethod
     def generate_identity(cls, genre: str, theme: str):
@@ -134,37 +131,8 @@ class StationIdentity:
         }
         slogan = slogans.get(genre.lower(), slogans["default"])
         
-        # Generate color scheme based on genre
-        color_schemes = {
-            "pop": ("#FF6B6B", "#4ECDC4"),  # Bright colors
-            "rock": ("#2F2F2F", "#F8F8F8"),  # Black and white
-            "hip hop": ("#1A1A2E", "#E94560"),  # Dark with accent
-            "electronic": ("#0F3460", "#E94560"),  # Dark blue with pink
-            "lofi": ("#B7C4CF", "#967E76"),  # Muted tones
-            "jazz": ("#2C3639", "#DCD7C9"),  # Dark with cream
-            "classical": ("#3F4E4F", "#DCD7C9"),  # Elegant tones
-            "ambient": ("#1B2430", "#D6D5A8"),  # Dark with soft accent
-            "country": ("#5F8670", "#FF9800"),  # Earthy green with orange accent
-            "default": ("#2C3639", "#A27B5C")  # Neutral tones
-        }
-        color_scheme = color_schemes.get(genre.lower(), color_schemes["default"])
         
-        # Logo style
-        logo_styles = {
-            "pop": "modern",
-            "rock": "grunge",
-            "hip hop": "urban",
-            "electronic": "futuristic",
-            "lofi": "minimal",
-            "jazz": "vintage",
-            "classical": "elegant",
-            "ambient": "abstract",
-            "country": "rustic",
-            "default": "modern"
-        }
-        logo_style = logo_styles.get(genre.lower(), logo_styles["default"])
-        
-        return cls(name, slogan, color_scheme, logo_style)
+        return cls(name, slogan)
 
 class AIRadioStation:
     def __init__(self, ace_step_pipeline: ACEStepPipeline, model_path: str = "gemma-3-12b-it-abliterated.q4_k_m"):
@@ -400,7 +368,7 @@ class AIRadioStation:
     def start_radio(self, genre: str, theme: str, duration: Optional[float] = None, 
                 buffer_size: int = 1, language: str = "English", max_history: int = 50, 
                 tempo: Optional[int] = None, intensity: Optional[str] = None, 
-                mood: Optional[str] = None, random_mode: bool = False):
+                mood: Optional[str] = None, random_mode: bool = False, random_languages: bool = False):
         """Start the radio station with smart defaults"""
         self.stop_radio()
         self.stop_event.clear()
@@ -412,10 +380,6 @@ class AIRadioStation:
         intensity = intensity or "medium"
         mood = mood or self._detect_mood(theme)
         
-        # Store the random mode setting
-        self.random_mode = random_mode
-        
-
         print(f"\n=== Starting song generation ===")
         print(f"Genre: {genre}, Theme: {theme}, Duration: {duration}s")
         if tempo is not None:
@@ -434,6 +398,8 @@ class AIRadioStation:
         self.min_buffer_size = buffer_size
         self.max_history_size = max_history
         self.language = language
+        self.random_mode = random_mode
+        self.random_languages=random_languages 
         self.playlist = []
         self.history = []
         self.state = RadioState.BUFFERING
@@ -476,7 +442,7 @@ class AIRadioStation:
         return "upbeat"
 
     def generate_lyrics_and_prompt(self, genre: str, theme: str, language: str = "English") -> Tuple[str, str]:
-        """Generate song lyrics with genre-specific structures"""
+        """Generate song lyrics with genre-specific structures and retry logic"""
         structures = {
             "pop": (
                 "[Verse 1]\n{lyrics}\n\n"
@@ -515,16 +481,6 @@ class AIRadioStation:
                 "[Build-Up]\n{lyrics}\n\n"
                 "[Drop]\n{lyrics}\n\n"
                 "[Outro] (beat fade)"
-            ),
-            "country": (
-                "[Steel Guitar Intro]\n\n"
-                "[Verse 1] (storytelling)\n{lyrics}\n\n"
-                "[Chorus] (big melody)\n{lyrics}\n\n"
-                "[Verse 2] (develop story)\n{lyrics}\n\n"
-                "[Chorus]\n{lyrics}\n\n"
-                "[Fiddle Solo] (8 bars)\n\n"
-                "[Bridge] (emotional peak)\n{lyrics}\n\n"
-                "[Double Chorus] (with harmonies)"
             ),
             "country": (
                 "[Steel Guitar Intro]\n\n"
@@ -592,37 +548,50 @@ class AIRadioStation:
         print(f"\nLyric generation prompt:\n{prompt}")
         
         lyrics = ""
+        max_retries = 2  # Number of retries before falling back
+        retry_count = 0
+        
         if self.llm_model_path:  # Only try if we have a model path
-            try:
-                # Load model right before use
-                self.release_pipeline()
-                self.load_llm()
-                
-                if self.llm:  # Check if load was successful
-                    print("Using LLM for lyric generation...")
-                    output = self.llm(
-                        prompt,
-                        max_tokens=700,
-                        temperature=0.7,
-                        top_p=0.9,
-                        repeat_penalty=1.1,
-                        stop=["[End]", "\n\n\n"],
-                        echo=False
-                    )
+            while retry_count <= max_retries:
+                try:
+                    # Load model right before use
+                    self.release_pipeline()
+                    self.load_llm()
                     
-                    lyrics = output["choices"][0]["text"].strip()
-                    print(f"Generated lyrics:\n{lyrics}")
-                    
-                    if not lyrics or len(lyrics.splitlines()) < 6:
-                        raise ValueError("Lyrics too short or empty")
+                    if self.llm:  # Check if load was successful
+                        print(f"Using LLM for lyric generation (attempt {retry_count + 1}/{max_retries + 1})...")
+                        output = self.llm(
+                            prompt,
+                            max_tokens=700,
+                            temperature=0.7,
+                            top_p=0.9,
+                            repeat_penalty=1.1,
+                            stop=["[End]", "\n\n\n"],
+                            echo=False
+                        )
                         
-                    lyrics = lyrics.replace("[Inst]", "").strip()
-            except Exception as e:
-                print(f"LLM generation failed: {str(e)}")
-                lyrics = self._fallback_lyrics(genre, theme)
-            finally:
-                # Always unload after generation
-                self.unload_llm()
+                        lyrics = output["choices"][0]["text"].strip()
+                        print(f"Generated lyrics:\n{lyrics}")
+                        
+                        # Validate lyrics quality
+                        if not lyrics or len(lyrics.splitlines()) < 6:
+                            raise ValueError("Lyrics too short or empty")
+                            
+                        lyrics = lyrics.replace("[Inst]", "").strip()
+                        break  # Success - exit retry loop
+                        
+                except Exception as e:
+                    print(f"Lyric generation attempt {retry_count + 1} failed: {str(e)}")
+                    retry_count += 1
+                    if retry_count <= max_retries:
+                        print("Retrying...")
+                        time.sleep(1)  # Brief delay before retry
+                    else:
+                        print("Max retries reached, using fallback lyrics")
+                        lyrics = self._fallback_lyrics(genre, theme)
+                finally:
+                    # Always unload after generation attempt
+                    self.unload_llm()
         else:
             lyrics = self._fallback_lyrics(genre, theme)
         
@@ -666,6 +635,11 @@ class AIRadioStation:
                 self.clean_all_memory()
                 # Always generate if queue is below buffer size
                 if self.song_queue.qsize() < self.min_buffer_size:
+                    # Handle random language selection independently of random_mode
+                    current_language = self.language
+                    if self.random_languages and not first_song_in_random_mode:
+                        current_language = random.choice(list(SUPPORTED_LANGUAGES.keys()))
+                    
                     # If in random mode, generate random parameters for each song AFTER the first one
                     if self.random_mode and not first_song_in_random_mode:
                         genres = list(THEME_SUGGESTIONS.keys())
@@ -680,12 +654,18 @@ class AIRadioStation:
                             theme=current_theme,
                             tempo=current_tempo,
                             intensity=current_intensity,
-                            mood=current_mood
+                            mood=current_mood,
+                            language=current_language  # Use the potentially randomized language
                         )
                     else:
-                        # Use the selected parameters for the first song
-                        song = self.generate_song(genre, theme, duration)
-                        first_song_in_random_mode = False  # After first song, we can randomize
+                        # Use the selected parameters for the first song or when not in random mode
+                        song = self.generate_song(
+                            genre=genre,
+                            theme=theme,
+                            duration=duration,
+                            language=current_language  # Use the potentially randomized language
+                        )
+                        first_song_in_random_mode = False  # After first song, we can randomize if enabled
                         
                     self.song_queue.put(song)
                     self.playlist.append(song)
@@ -742,13 +722,6 @@ class AIRadioStation:
         
         self._save_state()
 
-    def pause_radio(self):
-        """Pause playback (keeps generating in background)"""
-        if self.state == RadioState.PLAYING:
-            self.playback_paused.set()
-            self.state = RadioState.PAUSED
-            return True
-        return False
 
     def resume_radio(self):
         """Resume paused playback"""
@@ -759,8 +732,8 @@ class AIRadioStation:
         return False
 
     def generate_song(self, genre: str, theme: str, duration: float = 120.0, 
-             tempo: Optional[int] = None, intensity: Optional[str] = None,
-             mood: Optional[str] = None) -> Song:
+                    tempo: Optional[int] = None, intensity: Optional[str] = None,
+                    mood: Optional[str] = None, language: Optional[str] = None) -> Song:
         """
         Generate a complete song with lyrics and music.
         
@@ -775,9 +748,9 @@ class AIRadioStation:
         Raises:
             Exception: If generation fails at any stage
         """
+        language = language or self.language
         print(f"\n=== Starting song generation ===")
-        print(f"Genre: {genre}, Theme: {theme}, Duration: {duration}s")
-        
+        print(f"Genre: {genre}, Theme: {theme}, Language: {language}, Duration: {duration}s")        
         # Initialize progress tracking
         self.generation_progress = 0.0
         song = None
@@ -787,7 +760,8 @@ class AIRadioStation:
             self.clean_all_memory()
             print("\n[1/3] Generating lyrics...")
             self.generation_progress = 0.33
-            lyrics, music_prompt = self.generate_lyrics_and_prompt(genre, theme, self.language)
+            print("language is: ", language)
+            lyrics, music_prompt = self.generate_lyrics_and_prompt(genre, theme, language)
             self.clean_all_memory()
             
             # Stage 2: Generate music
@@ -828,7 +802,7 @@ class AIRadioStation:
                     theme=theme,
                     duration=duration,
                     lyrics=lyrics,
-                    language=self.language, 
+                    language = language,
                     prompt=music_prompt,
                     audio_path=audio_path,
                     generation_time=generation_time,
@@ -864,7 +838,6 @@ class AIRadioStation:
 
 def create_radio_interface(radio: AIRadioStation):
     """Create Gradio interface for the AI Radio Station"""
-    # vram_display = gr.JSON(label="VRAM Usage")
     
     def update_display():
         """Update the UI display with current radio status"""
@@ -908,7 +881,6 @@ def create_radio_interface(radio: AIRadioStation):
             playback_time = "0s / 0s"
         
         # generation_percent = radio.generation_progress * 100
-        # vram_info = radio.get_vram_usage() if hasattr(radio, 'get_vram_usage') else {}
     
         # Get song data
         song_lyrics = current_song.lyrics if current_song else "No song playing"
@@ -928,7 +900,7 @@ def create_radio_interface(radio: AIRadioStation):
             history_data
         ]
 
-    def start_radio(genre, theme, duration, buff_size, model_path, language, max_history, tempo, intensity, mood, random_mode):
+    def start_radio(genre, theme, duration, buff_size, model_path, language, max_history, tempo, intensity, mood, random_mode, random_languages):
         """Start the radio with the specified parameters"""
         # Update model if changed
         if model_path and hasattr(radio, 'llm') and radio.llm and model_path != radio.llm.model_path:
@@ -956,7 +928,8 @@ def create_radio_interface(radio: AIRadioStation):
             tempo=tempo,
             intensity=intensity,
             mood=mood,
-            random_mode=random_mode
+            random_mode=random_mode,
+            random_languages=random_languages 
         )
         
         return update_display()
@@ -979,6 +952,8 @@ def create_radio_interface(radio: AIRadioStation):
         
         return (
             genre, theme, current_model_path, language, tempo, intensity, mood,
+            True,  # random_mode
+            True,  # random_languages
             *update_display()
         )
     
@@ -987,10 +962,6 @@ def create_radio_interface(radio: AIRadioStation):
         radio.stop_radio()
         return update_display()
 
-    def pause_playback():
-        """Pause radio playback"""
-        radio.pause_radio()
-        return update_display()
     
     def resume_playback():
         """Resume radio playback"""
@@ -1045,7 +1016,8 @@ def create_radio_interface(radio: AIRadioStation):
                         )
                         duration_input = gr.Slider(30, 600, value=120, label="Song Duration (seconds)")
                         buffer_size = gr.Slider(1, 10, value=1, step=1, label="Buffer Size (songs)")
-                        random_mode = gr.Checkbox(label="Continuous Random Mode", value=False)
+                        random_mode = gr.Checkbox(label="Continuous Random Mode (after the first song)", value=True)
+                        random_languages = gr.Checkbox(label="Randomize Languages (after the first song)", value=False)
                         model_path_input = gr.File(
                             label="GGUF Model File",
                             file_types=[".gguf"],
@@ -1074,7 +1046,6 @@ def create_radio_interface(radio: AIRadioStation):
                     with gr.Row():
                         start_btn = gr.Button("Start Radio", elem_classes="custom-btn")
                         stop_btn = gr.Button("Stop", elem_classes="custom-btn")
-                        pause_btn = gr.Button("Pause", elem_classes="custom-btn")
                         resume_btn = gr.Button("Resume", elem_classes="custom-btn")
                     
                     with gr.Row():
@@ -1128,7 +1099,7 @@ def create_radio_interface(radio: AIRadioStation):
         start_btn.click(
             fn=start_radio,
             inputs=[genre_input, theme_input, duration_input, buffer_size, model_path_input, 
-                language_input, max_history, tempo_input, intensity_input, mood_input, random_mode],
+                language_input, max_history, tempo_input, intensity_input, mood_input, random_mode, random_languages],
             outputs=output_components
         )
         
@@ -1137,10 +1108,6 @@ def create_radio_interface(radio: AIRadioStation):
             outputs=output_components
         )
         
-        pause_btn.click(
-            fn=pause_playback,
-            outputs=output_components
-        )
         
         resume_btn.click(
             fn=resume_playback,
@@ -1155,7 +1122,7 @@ def create_radio_interface(radio: AIRadioStation):
         surprise_btn.click(
             fn=surprise_me,
             outputs=[genre_input, theme_input, model_path_input,
-                    language_input, tempo_input, intensity_input, mood_input,
+                    language_input, tempo_input, intensity_input, mood_input, random_mode, random_languages,
                     *output_components]
         )
         
