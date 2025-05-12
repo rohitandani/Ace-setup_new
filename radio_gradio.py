@@ -263,12 +263,11 @@ class AIRadioStation:
 
 
     def _playback_worker(self):
-        """Optimized playback worker with minimal delays"""
+        """Simplified playback worker that switches songs when they end"""
         self.state = RadioState.BUFFERING
         print("Playback worker started - buffering songs...")
         
         last_cache_clean = time.time()
-        buffer_check_interval = 0.1  # More responsive checking
         
         while not self.stop_event.is_set():
             try:
@@ -291,18 +290,19 @@ class AIRadioStation:
                         self.state = RadioState.PLAYING
                         self._first_play = False
                     else:
-                        # Non-blocking yield instead of sleep
-                        time.sleep(buffer_check_interval)
+                        # Wait for buffer to fill
+                        time.sleep(0.5)
                         continue
                 
                 # Main playback logic
                 try:
                     song = self.song_queue.get_nowait()  # Non-blocking get
                     self._play_song(song)
+                    # No need to track elapsed time - just play each song and move on
                     
                 except queue.Empty:
                     # Tiny sleep when empty to prevent CPU spin
-                    time.sleep(0.05)
+                    time.sleep(0.1)
                     
             except Exception as e:
                 print(f"Playback error: {e}")
@@ -310,7 +310,7 @@ class AIRadioStation:
                 time.sleep(1)  # Prevent crash loops
 
     def _play_song(self, song):
-        """Optimized song playback with proper tracking"""
+        """Simplified song playback - just play the full song without tracking time"""
         self.current_song = song
         self.history.append(song)
         
@@ -318,20 +318,24 @@ class AIRadioStation:
             f"Title: {song.title}\n"
             f"Duration: {song.duration:.1f}s\n")
         
-        # Reset elapsed time
-        self.current_song_elapsed = 0.0
+        # Simply sleep for the song duration
+        # Use the requested duration from the song object
+        target_duration = float(song.duration)
         
-        # Playback tracking
+        print(f"Playing song for full duration: {target_duration:.1f}s")
+        
+        # Single sleep for the full song duration
         start_time = time.time()
-        while (time.time() - start_time) < song.duration:
+        
+        # Wait until song finishes or playback is interrupted
+        while (time.time() - start_time) < target_duration:
             if self.stop_event.is_set() or self.playback_paused.is_set():
                 break
-            time.sleep(0.1)  # Smaller sleep increments
-            self.current_song_elapsed = time.time() - start_time
+            time.sleep(0.1)  # Short sleep to be responsive to interruptions
         
-        # Ensure we mark the song as complete if not interrupted
+        # Song completed
         if not (self.stop_event.is_set() or self.playback_paused.is_set()):
-            self.current_song_elapsed = song.duration
+            print(f"Song complete - played for full duration: {target_duration:.1f}s")
 
     def _cleanup_cache(self):
         """More aggressive VRAM cleanup"""
@@ -531,18 +535,22 @@ class AIRadioStation:
         }
 
         prompt = (
-            f"Write a {genre} song about '{theme}' with this structure:\n"
+            f"Write a {genre} song in {language} about '{theme}' using this exact structure:\n"
             f"{structure}\n\n"
-            "Key requirements:\n"
-            f"- Use {language} language\n"  
+            "STRICT REQUIREMENTS:\n"
+            "1. Write ONLY the song lyrics - no translations, no explanations, no notes\n"
+            "2. Use ONLY the specified language: {language}\n"
+            "3. Follow the structure EXACTLY as shown\n"
+            "4. Format each section header exactly as shown (e.g. [Verse 1])\n"
+            "5. Never include any text outside the lyrics structure\n\n"
+            "STYLE GUIDELINES:\n"
             f"- {prompt_addons.get(genre.lower(), prompt_addons['default'])}\n"
             f"- {intensity_modifiers.get(self.intensity, intensity_modifiers['medium'])} feel\n"
             f"- {mood_modifiers.get(self.mood, mood_modifiers['upbeat'])} mood\n"
-            "- Include vivid imagery and emotional resonance\n"
-            "- Match the rhythm and phrasing to the genre\n"
-            "- Do not write any other texts outside the lyrics\n"
-            f"{'- Add country idioms (e.g. dusty roads, neon signs)' if genre.lower() == 'country' else ''}"
-            f"{'- Include rap flow patterns' if genre.lower() == 'hip hop' else ''}"
+            "- Use vivid imagery and emotional resonance\n"
+            "- Match the rhythm and phrasing to {genre} conventions\n"
+            f"{'- Incorporate country idioms and themes' if genre.lower() == 'country' else ''}"
+            f"{'- Use rap flow patterns and urban vocabulary' if genre.lower() == 'hip hop' else ''}\n\n"
         )
         
         print(f"\nLyric generation prompt:\n{prompt}")
@@ -750,6 +758,9 @@ class AIRadioStation:
             Exception: If generation fails at any stage
         """
         language = language or self.language
+        # Make sure we're using the requested duration
+        duration = float(duration)
+        
         print(f"\n=== Starting song generation ===")
         print(f"Genre: {genre}, Theme: {theme}, Language: {language}, Duration: {duration}s")        
         # Initialize progress tracking
@@ -766,7 +777,7 @@ class AIRadioStation:
             self.clean_all_memory()
             
             # Stage 2: Generate music
-            print("\n[2/3] Generating music with ACEStepPipeline...")
+            print(f"\n[2/3] Generating music with ACEStepPipeline (requested duration: {duration}s)...")
             self.generation_progress = 0.66
             start_time = time.time()
             
@@ -796,14 +807,15 @@ class AIRadioStation:
                 print(f"\n[3/3] Song generated in {generation_time:.2f} seconds")
                 self.generation_progress = 1.0
                 
+                # Store the actual requested duration to ensure consistency
                 song = Song(
                     title=f"{theme.title()} {random.randint(1, 100)}",
                     artist="AI Radio",
                     genre=genre,
                     theme=theme,
-                    duration=duration,
+                    duration=duration,  # Use the requested duration for timing
                     lyrics=lyrics,
-                    language = language,
+                    language=language,
                     prompt=music_prompt,
                     audio_path=audio_path,
                     generation_time=generation_time,
@@ -836,30 +848,24 @@ class AIRadioStation:
                 self.generation_progress = 1.0
             else:
                 self.generation_progress = 0.0
+                    
 
 def create_radio_interface(radio: AIRadioStation):
     """Create Gradio interface for the AI Radio Station"""
     
     def update_display():
-        """Update the UI display with current radio status"""
+        """Update the UI display with current radio status (without time tracking)"""
         current_song = radio.current_song
         
         # Format audio for playback if playing
-        song_audio = gr.Audio(
-            value=current_song.audio_path if current_song else None,
-            autoplay=True if current_song and radio.state == RadioState.PLAYING else False
-        )
+        song_audio = None
+        if current_song:
+            song_audio = gr.Audio(
+                value=current_song.audio_path,
+                autoplay=True if radio.state == RadioState.PLAYING else False,
+            )
 
-        # Calculate playback progress based on actual elapsed time
-        if current_song and radio.state == RadioState.PLAYING:
-            playback_percent = min(100, (radio.current_song_elapsed / current_song.duration) * 100)
-            playback_time = f"{int(radio.current_song_elapsed)}s / {int(current_song.duration)}s"
-        else:
-            playback_percent = 0
-        playback_time = "0s / 0s"
-
-
-        # Format history for display - NOW INCLUDING LANGUAGE
+        # Format history for display
         history_data = [
             [song.title, song.genre, song.theme, song.language, f"{song.duration:.1f}s", 
             time.strftime('%H:%M:%S', time.localtime(song.timestamp))]
@@ -873,31 +879,27 @@ def create_radio_interface(radio: AIRadioStation):
             else f"Buffer: {radio.song_queue.qsize()} songs"
         )
         
-        # Calculate playback progress
-        if current_song and hasattr(radio, 'current_song_elapsed') and radio.state == RadioState.PLAYING:
-            playback_percent = min(100, (radio.current_song_elapsed / current_song.duration) * 100)
-            playback_time = f"{int(radio.current_song_elapsed)}s / {int(current_song.duration)}s"
-        else:
-            playback_percent = 0
-            playback_time = "0s / 0s"
-        
-        # generation_percent = radio.generation_progress * 100
-    
         # Get song data
         song_lyrics = current_song.lyrics if current_song else "No song playing"
         song_metadata = current_song.metadata if current_song else {}
         
+        status_text = f"{radio.state.name}"
+        if radio.state == RadioState.PLAYING and current_song:
+            # Just show song title without time
+            status_text += f" - {current_song.title}"
+        status_text += f" - {radio.song_queue.qsize()} songs queued"
+        
         return [
             radio.identity.name if radio.identity else "",
-            f"{radio.state.name} - {radio.song_queue.qsize()} songs queued",
+            status_text,
             radio.song_queue.qsize(),
             radio.state.name,
             song_audio,
             song_lyrics,
             song_metadata,
-            playback_time,
+            "", # Empty string for playback time
             buffer_msg,
-            playback_percent,
+            0,  # No progress percentage
             history_data
         ]
 
@@ -917,6 +919,10 @@ def create_radio_interface(radio: AIRadioStation):
                 print(f"Loaded new LLM model from: {model_path}")
             except Exception as e:
                 print(f"Failed to load new LLM model: {e}")
+        
+        # Convert duration to float explicitly
+        duration = float(duration)
+        print(f"Starting radio with requested duration: {duration}s")
         
         # Start the radio station
         radio.start_radio(
@@ -1059,7 +1065,7 @@ def create_radio_interface(radio: AIRadioStation):
                     status_output = gr.Textbox(label="Status")
                     queue_size = gr.Number(label="Songs in Queue", visible=False)
                     state_display = gr.Textbox(label="Player State", visible=False)
-                    playback_pos = gr.Textbox(label="Playback Position")
+                    playback_pos = gr.Textbox(label="Playback Position", visible=False)
                     buffer_status = gr.Textbox(label="Buffer Status", visible=False)
                     
                     # gr.Markdown("### Generation Progress")
@@ -1071,7 +1077,7 @@ def create_radio_interface(radio: AIRadioStation):
                     current_song_output = gr.Audio(label="Now Playing", interactive=False, autoplay=True, visible=True)
                     with gr.Tabs():
                         with gr.TabItem("Lyrics"):
-                            lyrics_output = gr.Textbox(label="Lyrics", lines=10, interactive=False)
+                            lyrics_output = gr.Textbox(label="Lyrics", lines=20, interactive=False)
                         with gr.TabItem("Song Details"):
                             song_info = gr.JSON(label="Song Info")
                         with gr.TabItem("History"):
