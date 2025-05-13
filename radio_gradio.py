@@ -556,6 +556,16 @@ class AIRadioStation:
     def generate_lyrics_and_prompt(self, genre: str, theme: str, language: str = "English") -> Tuple[str, str]:
         """Generate song lyrics with genre-specific structures and retry logic"""
         structures = {
+            "country": (
+                "[Steel Guitar Intro]\n\n"
+                "[Verse 1] (storytelling)\n{lyrics}\n\n"
+                "[Chorus] (big melody)\n{lyrics}\n\n"
+                "[Verse 2] (develop story)\n{lyrics}\n\n"
+                "[Chorus]\n{lyrics}\n\n"
+                "[Fiddle Solo] (8 bars)\n\n"
+                "[Bridge] (emotional peak)\n{lyrics}\n\n"
+                "[Double Chorus] (with harmonies)"
+            ),
             "pop": (
                 "[Verse 1]\n{lyrics}\n\n"
                 "[Pre-Chorus]\n{lyrics}\n\n"
