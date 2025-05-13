@@ -34,6 +34,7 @@ SUPPORTED_LANGUAGES = {
 
 # Genre-specific configurations
 GENRE_DURATIONS = {
+    # Existing genres
     "pop": 180,
     "rock": 210,
     "hip hop": 210,
@@ -43,10 +44,24 @@ GENRE_DURATIONS = {
     "classical": 360,
     "ambient": 420,
     "country": 210,
+    
+    # New genres
+    "metal": 240,        # Longer for solos
+    "death metal": 210,  # More concise brutality
+    "doom metal": 420,   # Extended heavy passages
+    "reggae": 240,       # Extended dub sections
+    "dub": 300,          # Even longer instrumental
+    "blues": 240,        # 12-bar repetitions
+    "delta blues": 300,  # Storytelling format
+    "funk": 210,         # Tight grooves
+    "disco": 270,        # Extended dance mixes
+    "punk": 150,         # Short and fast
+    
     "default": 180
 }
 
 GENRE_TEMPOS = {
+    # Existing genres
     "pop": 120,
     "rock": 140,
     "hip hop": 95,
@@ -56,20 +71,100 @@ GENRE_TEMPOS = {
     "classical": 80,
     "ambient": 70,
     "country": 100,
+    
+    # New genres
+    "metal": 160,       # Faster for thrash/speed metal
+    "death metal": 180, # Extreme metal subgenre
+    "doom metal": 60,   # Slower, heavier variant
+    "reggae": 90,       # Laid-back offbeat rhythm
+    "dub": 85,          # Even slower reggae variant
+    "blues": 100,       # Classic 12-bar shuffle
+    "delta blues": 80,  # Slower acoustic blues
+    "funk": 115,        # Groove-oriented
+    "disco": 120,       # Danceable four-on-the-floor
+    "punk": 180,        # Fast and aggressive
+    
     "default": 120
 }
 
 THEME_SUGGESTIONS = {
-    "pop": ["summer love", "heartbreak", "dancing", "celebrity crush", "night out"],
-    "rock": ["rebellion", "road trip", "broken dreams", "rock and roll lifestyle"],
-    "hip hop": ["street life", "hustle", "success story", "city nights"],
-    "electronic": ["neon lights", "cosmic journey", "digital dreams", "midnight drive"],
-    "lofi": ["rainy day", "coffee shop", "study session", "chill vibes"],
-    "jazz": ["smooth nights", "blue mood", "speakeasy", "saxophone dreams"],
-    "classical": ["moonlight", "spring morning", "winter tale", "royal ball"],
-    "ambient": ["ocean waves", "forest walk", "mountain sunrise", "deep space"],
-    "country": ["small town", "truck driving", "lost love", "whiskey nights", "backroads"],
-    "default": ["love", "dreams", "adventure", "nostalgia"]
+    "pop": [
+        "summer love", "heartbreak", "dancing", "celebrity crush", "night out",
+        "young and free", "last goodbye", "party all night", "secret admirer",
+        "teenage dreams", "radio hit", "glitter and gold", "midnight kiss",
+        "fame and fortune", "broken promises"
+    ],
+    "rock": [
+        "rebellion", "road trip", "broken dreams", "rock and roll lifestyle",
+        "guitar hero", "against the machine", "burning bridges", "small town blues",
+        "arena anthem", "leather and spikes", "last train home", "bar fight",
+        "whiskey rebellion", "soundcheck at midnight"
+    ],
+    "hip hop": [
+        "street life", "hustle", "success story", "city nights",
+        "hood chronicles", "money and power", "block party", "trap dreams",
+        "lyrical warfare", "24/7 grind", "bounce to this", "gold chains",
+        "concrete jungle", "from nothing to something"
+    ],
+    "electronic": [
+        "neon lights", "cosmic journey", "digital dreams", "midnight drive",
+        "rave till dawn", "synthetic love", "cyberpunk city", "bass drop",
+        "laser fantasy", "underground warehouse", "alien transmission",
+        "metropolis pulse", "glitch in the matrix", "afterhours euphoria"
+    ],
+    "lofi": [
+        "rainy day", "coffee shop", "study session", "chill vibes",
+        "late night thoughts", "window seat", "old cassette tapes",
+        "sunday morning", "vinyl crackle", "city skyline at dusk",
+        "nostalgic memories", "quiet bookstore", "snowfall at midnight"
+    ],
+    "jazz": [
+        "smooth nights", "blue mood", "speakeasy", "saxophone dreams",
+        "moonlight serenade", "smoky bar", "improvisation", "uptown swing",
+        "jazz age", "walking bassline", "after hours jam", "velvet voice",
+        "trumpet solo", "harlem renaissance"
+    ],
+    "classical": [
+        "moonlight", "spring morning", "winter tale", "royal ball",
+        "symphony no. 9", "opera drama", "baroque garden", "piano concerto",
+        "sunrise sonata", "gothic cathedral", "waltz of the flowers",
+        "requiem mass", "orchestral storm", "string quartet"
+    ],
+    "ambient": [
+        "ocean waves", "forest walk", "mountain sunrise", "deep space",
+        "arctic winds", "desert mirage", "underwater caves", "celestial bodies",
+        "morning mist", "ancient ruins", "silent meditation", "bioluminescent bay",
+        "northern lights", "empty train station at night"
+    ],
+    "country": [
+        "small town", "truck driving", "lost love", "whiskey nights", "backroads",
+        "dusty boots", "honky tonk angel", "rodeo clown", "front porch swing",
+        "blue jeans", "pickup truck", "county fair", "dirt road diary",
+        "grandpa's guitar", "southern comfort"
+    ],
+    "metal": [
+        "battle cries", "apocalypse now", "dragon slayer", "demonic possession",
+        "forge of souls", "viking conquest", "doomsday prophecy", "blackened sky",
+        "mosh pit madness", "necrotic ritual", "shred till death",
+        "iron maiden voyage", "blood moon rising"
+    ],
+    "reggae": [
+        "island breeze", "one love", "ganja farmer", "sunshine state of mind",
+        "beach bonfire", "rasta revolution", "dub plate special",
+        "tropical storm", "bob marley tribute", "steel drum sunset",
+        "kingston nights", "irie vibrations"
+    ],
+    "blues": [
+        "crossroads deal", "mississippi delta", "empty whiskey bottle",
+        "train whistle blues", "juke joint", "broken guitar string",
+        "stormy monday", "dust my broom", "hard luck woman",
+        "12-bar confession", "slide guitar tears"
+    ],
+    "default": [
+        "love", "dreams", "adventure", "nostalgia",
+        "second chances", "hidden truth", "forbidden fruit",
+        "eternal youth", "parallel universe", "fading memories"
+    ]
 }
 
 # Enums and Data Classes
@@ -111,6 +206,9 @@ class StationIdentity:
             "jazz": "Jazz",
             "lofi": "Lo-Fi",
             "country": "Country",
+            "metal": "Metal",
+            "reggae": "Reggae",
+            "blues": "Blues",
             "default": "Radio"
         }
         suffix = suffixes.get(genre.lower(), suffixes["default"])
@@ -127,6 +225,9 @@ class StationIdentity:
             "classical": f"{theme} masterpieces",
             "ambient": f"{theme} soundscapes",
             "country": f"Real {theme} country music",
+            "metal": f"Brutal {theme} sounds",
+            "reggae": f"Irie {theme} vibrations",
+            "blues": f"Authentic {theme} blues",
             "default": f"Your {theme} soundtrack"
         }
         slogan = slogans.get(genre.lower(), slogans["default"])
@@ -493,15 +594,62 @@ class AIRadioStation:
                 "[Drop]\n{lyrics}\n\n"
                 "[Outro] (beat fade)"
             ),
-            "country": (
-                "[Steel Guitar Intro]\n\n"
-                "[Verse 1] (storytelling)\n{lyrics}\n\n"
-                "[Chorus] (big melody)\n{lyrics}\n\n"
-                "[Verse 2] (develop story)\n{lyrics}\n\n"
-                "[Chorus]\n{lyrics}\n\n"
-                "[Fiddle Solo] (8 bars)\n\n"
-                "[Bridge] (emotional peak)\n{lyrics}\n\n"
-                "[Double Chorus] (with harmonies)"
+            "lofi": (
+                "[Ambient Intro] (with vinyl noise)\n\n"
+                "[Verse 1]\n{lyrics}\n\n"
+                "[Chill Chorus]\n{lyrics}\n\n"
+                "[Verse 2]\n{lyrics}\n\n"
+                "[Chill Chorus]\n{lyrics}\n\n"
+                "[Instrumental Break] (8 bars)\n\n"
+                "[Outro] (fade with rain sounds)"
+            ),
+            "jazz": (
+                "[Piano Intro] (improvised)\n\n"
+                "[Verse 1]\n{lyrics}\n\n"
+                "[Swing Chorus]\n{lyrics}\n\n"
+                "[Instrumental Break] (sax solo)\n\n"
+                "[Verse 2]\n{lyrics}\n\n"
+                "[Swing Chorus]\n{lyrics}\n\n"
+                "[Outro] (group improv)"
+            ),
+            "classical": (
+                "[Orchestral Introduction]\n\n"
+                "[Theme A]\n{lyrics}\n\n"
+                "[Theme B] (variation)\n\n"
+                "[Development Section]\n\n"
+                "[Recapitulation]\n{lyrics}\n\n"
+                "[Coda] (grand finale)"
+            ),
+            "ambient": (
+                "[Textural Intro] (2-4 minutes)\n\n"
+                "[Drone Section]\n{lyrics}\n\n"
+                "[Modulation]\n\n"
+                "[Resolution Section]\n{lyrics}\n\n"
+                "[Fade Out] (gradual)"
+            ),
+            "metal": (
+                "[Shredding Intro] (fast picking)\n\n"
+                "[Verse 1] (growled vocals)\n{lyrics}\n\n"
+                "[Chorus] (clean vocals)\n{lyrics}\n\n"
+                "[Guitar Solo] (tapping)\n\n"
+                "[Breakdown] (chugging riffs)\n\n"
+                "[Final Blast] (double bass)"
+            ),
+            "reggae": (
+                "[Skank Guitar Intro]\n\n"
+                "[Verse 1]\n{lyrics}\n\n"
+                "[Chorus] (call-and-response)\n{lyrics}\n\n"
+                "[Verse 2]\n{lyrics}\n\n"
+                "[Dub Section] (instrumental)\n\n"
+                "[Final Chorus] (with harmonies)"
+            ),
+            "blues": (
+                "[Guitar Lick Intro] (12-bar)\n\n"
+                "[Verse 1]\n{lyrics}\n\n"
+                "[Response] (guitar answers vocal)\n\n"
+                "[Verse 2]\n{lyrics}\n\n"
+                "[Harmonica Solo] (12-bar)\n\n"
+                "[Outro] (repeat and fade)"
             ),
             "default": (
                 "[Intro]\n{lyrics}\n\n"
@@ -522,7 +670,14 @@ class AIRadioStation:
             "rock": "electric guitars, driving drums, raw energy",
             "hip hop": "punchy beats, rhythmic flow, urban vibe",
             "electronic": "synthesizers, pulsing bass, euphoric drops", 
+            "lofi": "chill beats, vinyl crackle, relaxed vibe",
+            "jazz": "smooth saxophone, walking bass, improvisational solos",
+            "classical": "orchestral arrangements, dynamic phrasing, emotional depth",
+            "ambient": "atmospheric pads, subtle textures, immersive soundscapes",
             "country": "steel guitar, fiddle, storytelling, twangy vocals",
+            "metal": "distorted guitars, double bass drums, aggressive vocals",
+            "reggae": "offbeat rhythms, organ skanks, dub effects",
+            "blues": "bent notes, 12-bar structure, soulful vocals",
             "default": "melodic, emotionally expressive, professional mix"
         }
         
