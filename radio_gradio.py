@@ -418,9 +418,9 @@ class AIRadioStation:
         self.current_song = song
         self.history.append(song)
         # Enforce max history size
-        if len(self.history) > self.max_history_size:
+        # if len(self.history) > self.max_history_size:
             # Remove oldest song(s) - could do more than one if needed
-            self.history.pop(0)
+            # self.history.pop(0)
         
         print(f"\n=== Now Playing ===\n"
             f"Title: {song.title}\n"
@@ -1032,7 +1032,7 @@ def create_radio_interface(radio: AIRadioStation):
         history_data = [
             [song.title, song.genre, song.theme, song.language, f"{song.duration:.1f}s", 
             time.strftime('%H:%M:%S', time.localtime(song.timestamp))]
-            for song in radio.history[-10:]  # Show last 10 songs
+            for song in radio.history[-12:]  # Show last 10 songs
         ]
         
         # Create status messages
