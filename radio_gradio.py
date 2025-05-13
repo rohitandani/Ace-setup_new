@@ -14,6 +14,8 @@ from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum, auto
 from acestep.pipeline_ace_step import ACEStepPipeline
+import librosa
+
 
 # Constants and Configuration
 SUPPORTED_LANGUAGES = {
@@ -913,6 +915,10 @@ class AIRadioStation:
             genre: Music genre (pop, rock, etc.)
             theme: Song theme/topic
             duration: Song length in seconds
+            tempo: Beats per minute (optional)
+            intensity: Song intensity level (soft/medium/high)
+            mood: Emotional mood of the song
+            language: Language for lyrics
             
         Returns:
             Song: Generated song object
@@ -925,22 +931,22 @@ class AIRadioStation:
         duration = float(duration)
         
         print(f"\n=== Starting song generation ===")
-        print(f"Genre: {genre}, Theme: {theme}, Language: {language}, Duration: {duration}s")        
+        print(f"Genre: {genre}, Theme: {theme}, Language: {language}, Target Duration: {duration}s")        
+        
         # Initialize progress tracking
         self.generation_progress = 0.0
         song = None
         
         try:
-            # Stage 1: Generate 
+            # Stage 1: Generate lyrics
             self.clean_all_memory()
             print("\n[1/3] Generating lyrics...")
             self.generation_progress = 0.33
-            print("language is: ", language)
             lyrics, music_prompt = self.generate_lyrics_and_prompt(genre, theme, language)
             self.clean_all_memory()
             
             # Stage 2: Generate music
-            print(f"\n[2/3] Generating music with ACEStepPipeline (requested duration: {duration}s)...")
+            print(f"\n[2/3] Generating music with ACEStepPipeline (target duration: {duration}s)...")
             self.generation_progress = 0.66
             start_time = time.time()
             
@@ -965,18 +971,54 @@ class AIRadioStation:
                 audio_path = results[0]
                 metadata = results[-1]
                 
+                # Get actual duration of generated audio file
+                try:
+                    import librosa
+                    actual_duration = librosa.get_duration(filename=audio_path)
+                    print(f"Generated audio duration: {actual_duration:.2f}s (target was {duration}s)")
+                    
+                    # If duration is significantly different, adjust metadata
+                    if abs(actual_duration - duration) > 5.0:
+                        print(f"Note: Actual duration differs from target by {abs(actual_duration - duration):.2f}s")
+                        metadata['actual_duration'] = actual_duration
+                        metadata['target_duration'] = duration
+                except Exception as e:
+                    print(f"Couldn't measure audio duration: {e}")
+                    actual_duration = duration  # Fallback to target duration
+                
                 # Stage 3: Finalize song
                 generation_time = time.time() - start_time
                 print(f"\n[3/3] Song generated in {generation_time:.2f} seconds")
                 self.generation_progress = 1.0
                 
-                # Store the actual requested duration to ensure consistency
+                # Generate artist name based on genre
+                artist_names = {
+                    "pop": "Pop AI",
+                    "rock": "Rock Bot",
+                    "hip hop": "MC Algorithm",
+                    "electronic": "Synth AI",
+                    "lofi": "Lo-Fi Generator",
+                    "jazz": "Jazz AI",
+                    "classical": "Classical Composer AI",
+                    "ambient": "Ambient Creator",
+                    "metal": "Metal Machine",
+                    "reggae": "Digital Rasta",
+                    "blues": "Blues Bot"
+                }
+                artist = artist_names.get(genre.lower(), "AI Musician")
+                
+                # Create song title from theme
+                title = f"{theme.title()}"
+                if random.random() > 0.5:  # 50% chance to add a numeric suffix
+                    title += f" {random.randint(1, 100)}"
+                
+                # Store the actual duration in the Song object
                 song = Song(
-                    title=f"{theme.title()} {random.randint(1, 100)}",
-                    artist="AI Radio",
+                    title=title,
+                    artist=artist,
                     genre=genre,
                     theme=theme,
-                    duration=duration,  # Use the requested duration for timing
+                    duration=actual_duration,  # Use actual duration here
                     lyrics=lyrics,
                     language=language,
                     prompt=music_prompt,
@@ -985,6 +1027,12 @@ class AIRadioStation:
                     timestamp=time.time(),
                     metadata=metadata
                 )
+                
+                print(f"\n=== Song Generated ===")
+                print(f"Title: {song.title}")
+                print(f"Artist: {song.artist}")
+                print(f"Duration: {song.duration:.2f}s")
+                print(f"Audio Path: {song.audio_path}")
                 
                 return song
                 
@@ -1026,13 +1074,18 @@ def create_radio_interface(radio: AIRadioStation):
             song_audio = gr.Audio(
                 value=current_song.audio_path,
                 autoplay=True if radio.state == RadioState.PLAYING else False,
+                waveform_options={
+                    'sample_rate': 44100,  # Adjust if your audio uses different sample rate
+                    'show_controls': True,
+                }
             )
 
-        # Format history for display
+        # Format history for display with actual durations
         history_data = [
-            [song.title, song.genre, song.theme, song.language, f"{song.duration:.1f}s", 
+            [song.title, song.genre, song.theme, song.language, 
+            f"{song.duration:.1f}s", 
             time.strftime('%H:%M:%S', time.localtime(song.timestamp))]
-            for song in radio.history[-12:]  # Show last 10 songs
+            for song in radio.history[-14:]  # Show last 14 songs
         ]
         
         # Create status messages
@@ -1046,11 +1099,23 @@ def create_radio_interface(radio: AIRadioStation):
         song_lyrics = current_song.lyrics if current_song else "No song playing"
         song_metadata = current_song.metadata if current_song else {}
         
+        # Format duration display
+        if current_song:
+            # Convert duration to minutes:seconds format
+            minutes = int(current_song.duration // 60)
+            seconds = int(current_song.duration % 60)
+            duration_display = f"{minutes}:{seconds:02d}"
+        else:
+            duration_display = "0:00"
+        
+        # Create status text with duration
         status_text = f"{radio.state.name}"
         if radio.state == RadioState.PLAYING and current_song:
-            # Just show song title without time
-            status_text += f" - {current_song.title}"
+            status_text += f" - {current_song.title} ({current_song.duration:.1f}s)"
         status_text += f" - {radio.song_queue.qsize()} songs queued"
+        
+        # Calculate progress percentage (0-100)
+        progress_percent = radio.generation_progress * 100 if hasattr(radio, 'generation_progress') else 0
         
         return [
             radio.identity.name if radio.identity else "",
@@ -1060,9 +1125,9 @@ def create_radio_interface(radio: AIRadioStation):
             song_audio,
             song_lyrics,
             song_metadata,
-            "", # Empty string for playback time
+            duration_display,  # Formatted duration display
             buffer_msg,
-            0,  # No progress percentage
+            progress_percent,
             history_data
         ]
 
@@ -1245,7 +1310,16 @@ def create_radio_interface(radio: AIRadioStation):
             with gr.Column(scale=2):
                 # Now Playing Display
                 with gr.Group():
-                    current_song_output = gr.Audio(label="Now Playing", interactive=False, autoplay=True, visible=True)
+                    current_song_output = gr.Audio(
+                    label="Now Playing",
+                    interactive=False,
+                    autoplay=True,
+                    visible=True,
+                    waveform_options={
+                    'sample_rate': 44100,  # Or your actual sample rate
+                    'show_controls': True,
+                    }
+                    )
                     with gr.Tabs():
                         with gr.TabItem("Lyrics"):
                             lyrics_output = gr.Textbox(label="Lyrics", lines=20, interactive=False)
