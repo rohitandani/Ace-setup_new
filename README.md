@@ -82,8 +82,10 @@ Rather than building yet another end-to-end text-to-music pipeline, our vision i
 
 
 ## 📢 News and Updates
+- 🎮 2025.05.14: Add `Stable Audio Open Small` sampler `pingpong`. Use SDE to achieve better music consistency and quality, including lyric alignment and style alignment. Use a better method to re-implement `Audio2Audio`
+
 - 🎤 2025.05.12: Release [RapMachine](https://huggingface.co/ACE-Step/ACE-Step-v1-chinese-rap-LoRA) and fix lora training issues
-    - See [ZH_RAP_LORA.md](./ZH_RAP_LORA.md) for details.
+    - See [ZH_RAP_LORA.md](./ZH_RAP_LORA.md) for details. Audio Examples: https://ace-step.github.io/#RapMachine
     - See [TRAIN_INSTRUCTION.md](./TRAIN_INSTRUCTION.md) for detailed training instructions.
 
 <p align="center">
@@ -97,6 +99,10 @@ Rather than building yet another end-to-end text-to-music pipeline, our vision i
   - Recommended launch options:
     ```bash
     acestep --torch_compile true --cpu_offload true --overlapped_decode true
+    ```
+    Windows need to install triton:
+    ```
+    pip install triton-windows
     ```
 
 ![image](./assets/cpu_offload_performance.png)
@@ -339,7 +345,11 @@ If you intend to integrate ACE-Step as a library into your own Python projects, 
 - `--device_id`: GPU device ID to use (default: 0)
 - `--share`: Enable Gradio sharing link (default: False)
 - `--bf16`: Use bfloat16 precision for faster inference (default: True)
-- `--torch_compile`: Use `torch.compile()` to optimize the model, speeding up inference (default: False). **Not Supported on Windows**
+- `--torch_compile`: Use `torch.compile()` to optimize the model, speeding up inference (default: False). 
+  - **Windows need to install triton**:
+    ```
+    pip install triton-windows
+    ```
 - `--cpu_offload`: Offload model weights to CPU to save GPU memory (default: False)
 - `--overlapped_decode`: Use overlapped decoding to speed up inference (default: False)
 
