@@ -910,10 +910,19 @@ def create_text2music_ui(
         )
 
         def load_data(json_file):
-            if isinstance(output_file_dir, str):
-                json_file = os.path.join(output_file_dir, json_file)
+            # if no output directory was passed, fall back to ./outputs
+            if not isinstance(output_file_dir, str):
+                from pathlib import Path
+                repo_root = Path(__file__).parent.parent.parent
+                fallback_dir = repo_root / "outputs"
+                fallback_dir.mkdir(exist_ok=True)
+                dir_path = str(fallback_dir)
+            else:
+                dir_path = output_file_dir
+            json_file = os.path.join(dir_path, json_file)
             json_data = load_data_func(json_file)
             return json2output(json_data)
+
 
         load_bnt.click(
             fn=load_data,
