@@ -455,41 +455,20 @@ class ACEStepPipeline:
             timestep = t.expand(src_latent_model_input.shape[0])
 
             # source
-            noise_pred_src = self.ace_step_transformer(
-                hidden_states=src_latent_model_input,
-                attention_mask=attention_mask,
-                encoder_text_hidden_states=encoder_text_hidden_states,
-                text_attention_mask=text_attention_mask,
-                speaker_embeds=speaker_embds,
-                lyric_token_idx=lyric_token_ids,
-                lyric_mask=lyric_mask,
-                timestep=timestep,
-            ).sample
+            noise_pred_src = self.ace_step_transformer(src_latent_model_input, attention_mask, encoder_text_hidden_states, text_attention_mask, speaker_embds, lyric_token_ids, lyric_mask, timestep).sample
 
             if do_classifier_free_guidance:
-                noise_pred_with_cond_src, noise_pred_uncond_src = noise_pred_src.chunk(
-                    2
-                )
+                noise_pred_with_cond_src, noise_pred_uncond_src = noise_pred_src.chunk(2)
                 if cfg_type == "apg":
                     noise_pred_src = apg_forward(noise_pred_with_cond_src, noise_pred_uncond_src, guidance_scale, momentum_buffer)
                 elif cfg_type == "cfg":
                     noise_pred_src = cfg_forward(noise_pred_with_cond_src, noise_pred_uncond_src, guidance_scale)
 
-        tar_latent_model_input = (
-            torch.cat([zt_tar, zt_tar]) if do_classifier_free_guidance else zt_tar
-        )
+        tar_latent_model_input = torch.cat([zt_tar, zt_tar]) if do_classifier_free_guidance else zt_tar
         timestep = t.expand(tar_latent_model_input.shape[0])
+
         # target
-        noise_pred_tar = self.ace_step_transformer(
-            hidden_states=tar_latent_model_input,
-            attention_mask=attention_mask,
-            encoder_text_hidden_states=target_encoder_text_hidden_states,
-            text_attention_mask=target_text_attention_mask,
-            speaker_embeds=target_speaker_embeds,
-            lyric_token_idx=target_lyric_token_ids,
-            lyric_mask=target_lyric_mask,
-            timestep=timestep,
-        ).sample
+        noise_pred_tar = self.ace_step_transformer(tar_latent_model_input, attention_mask, target_encoder_text_hidden_states, target_text_attention_mask, target_speaker_embeds, target_lyric_token_ids, target_lyric_mask, timestep).sample
 
         if do_classifier_free_guidance:
             noise_pred_with_cond_tar, noise_pred_uncond_tar = noise_pred_tar.chunk(2)
