@@ -164,6 +164,7 @@ class ACEStepPipeline:
             else:
                 logger.info("Download models from Hugging Face: {}, cache to: {}", repo, checkpoint_dir)
                 checkpoint_dir_models = snapshot_download(repo, cache_dir=checkpoint_dir)
+
         return checkpoint_dir_models
 
     def load_checkpoint(self, checkpoint_dir=None, export_quantized_weights=False):
@@ -174,9 +175,7 @@ class ACEStepPipeline:
         text_encoder_checkpoint_path = os.path.join(checkpoint_dir, "umt5-base")
 
         # ACE
-        self.ace_step_transformer = ACEStepTransformer2DModel.from_pretrained(
-            ace_step_checkpoint_path, torch_dtype=self.dtype
-        )
+        self.ace_step_transformer = ACEStepTransformer2DModel.from_pretrained(ace_step_checkpoint_path, torch_dtype=self.dtype)
         if self.cpu_offload:
             self.ace_step_transformer = self.ace_step_transformer.to("cpu").eval().to(self.dtype)
         else:
@@ -185,10 +184,7 @@ class ACEStepPipeline:
             self.ace_step_transformer = torch.compile(self.ace_step_transformer)
 
         # DCAE
-        self.music_dcae = MusicDCAE(
-            dcae_checkpoint_path=dcae_checkpoint_path,
-            vocoder_checkpoint_path=vocoder_checkpoint_path
-        )
+        self.music_dcae = MusicDCAE(dcae_checkpoint_path, vocoder_checkpoint_path)
         if self.cpu_offload:  # might be redundant
             self.music_dcae = self.music_dcae.to("cpu").eval().to(self.dtype)
         else:
@@ -197,9 +193,7 @@ class ACEStepPipeline:
             self.music_dcae = torch.compile(self.music_dcae)
 
         # UMT5
-        text_encoder_model = UMT5EncoderModel.from_pretrained(
-            text_encoder_checkpoint_path, torch_dtype=self.dtype
-        ).eval()
+        text_encoder_model = UMT5EncoderModel.from_pretrained(text_encoder_checkpoint_path, torch_dtype=self.dtype)
         if self.cpu_offload:
             text_encoder_model = text_encoder_model.to("cpu").eval().to(self.dtype)
         else:
@@ -246,10 +240,7 @@ class ACEStepPipeline:
         ace_step_checkpoint_path = os.path.join(checkpoint_dir, "ace_step_transformer")
         text_encoder_checkpoint_path = os.path.join(checkpoint_dir, "umt5-base")
 
-        self.music_dcae = MusicDCAE(
-            dcae_checkpoint_path=dcae_checkpoint_path,
-            vocoder_checkpoint_path=vocoder_checkpoint_path,
-        )
+        self.music_dcae = MusicDCAE(dcae_checkpoint_path, vocoder_checkpoint_path)
         if self.cpu_offload:
             self.music_dcae.eval().to(self.dtype).to(self.device)
         else:
@@ -260,28 +251,20 @@ class ACEStepPipeline:
         self.ace_step_transformer = ACEStepTransformer2DModel.from_pretrained(ace_step_checkpoint_path)
         self.ace_step_transformer.eval().to(self.dtype).to('cpu')
         self.ace_step_transformer = torch.compile(self.ace_step_transformer)
-        self.ace_step_transformer.load_state_dict(
-            torch.load(
-                os.path.join(ace_step_checkpoint_path, "diffusion_pytorch_model_int4wo.bin"),
-                map_location=self.device,
-            ),assign=True
-        )
+        pth = os.path.join(ace_step_checkpoint_path, "diffusion_pytorch_model_int4wo.bin")
+        state_dict = torch.load(pth, map_location=self.device)
+        self.ace_step_transformer.load_state_dict(state_dict, assign=True)
         self.ace_step_transformer.torchao_quantized = True
 
         self.text_encoder_model = UMT5EncoderModel.from_pretrained(text_encoder_checkpoint_path)
         self.text_encoder_model.eval().to(self.dtype).to('cpu')
         self.text_encoder_model = torch.compile(self.text_encoder_model)
-        self.text_encoder_model.load_state_dict(
-            torch.load(
-                os.path.join(text_encoder_checkpoint_path, "pytorch_model_int4wo.bin"),
-                map_location=self.device,
-            ),assign=True
-        )
+        pth = os.path.join(text_encoder_checkpoint_path, "pytorch_model_int4wo.bin")
+        state_dict = torch.load(pth, map_location=self.device)
+        self.text_encoder_model.load_state_dict(state_dict, assign=True)
         self.text_encoder_model.torchao_quantized = True
 
-        self.text_tokenizer = AutoTokenizer.from_pretrained(
-            text_encoder_checkpoint_path
-        )
+        self.text_tokenizer = AutoTokenizer.from_pretrained(text_encoder_checkpoint_path)
 
         lang_segment = LangSegment()
         lang_segment.setfilters(language_filters.default)
@@ -292,31 +275,22 @@ class ACEStepPipeline:
 
     @cpu_offload("text_encoder_model")
     def get_text_embeddings(self, texts, text_max_length=256):
-        inputs = self.text_tokenizer(
-            texts,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            max_length=text_max_length,
-        )
+        inputs = self.text_tokenizer(texts, padding=True, truncation=True, max_length=text_max_length)
         inputs = {key: value.to(self.device) for key, value in inputs.items()}
+
         if self.text_encoder_model.device != self.device:
             self.text_encoder_model.to(self.device)
         with torch.no_grad():
             outputs = self.text_encoder_model(**inputs)
             last_hidden_states = outputs.last_hidden_state
         attention_mask = inputs["attention_mask"]
+
         return last_hidden_states, attention_mask
 
     @cpu_offload("text_encoder_model")
     def get_text_embeddings_null(self, texts, text_max_length=256, tau=0.01, l_min=8, l_max=10):
-        inputs = self.text_tokenizer(
-            texts,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            max_length=text_max_length,
-        )
+        inputs = self.text_tokenizer(texts, padding=True, truncation=True, max_length=text_max_length)
+
         inputs = {key: value.to(self.device) for key, value in inputs.items()}
         if self.text_encoder_model.device != self.device:
             self.text_encoder_model.to(self.device)
@@ -329,11 +303,10 @@ class ACEStepPipeline:
                 return output
 
             for i in range(l_min, l_max):
-                handler = (
-                    self.text_encoder_model.encoder.block[i]
-                    .layer[0]
-                    .SelfAttention.q.register_forward_hook(hook)
-                )
+                block = self.text_encoder_model.encoder.block[i]
+                layer = block.layer[0]
+                query = layer.SelfAttention.q
+                handler = query.register_forward_hook(hook)
                 handlers.append(handler)
 
             with torch.no_grad():
