@@ -1331,29 +1331,23 @@ class ACEStepPipeline:
             output_audio_paths.append(output_audio_path)
         return output_audio_paths
 
-    def save_wav_file(
-        self, target_wav, idx, save_path=None, sample_rate=48000, format="wav"
-    ):
+    def save_wav_file(self, target_wav, idx, save_path=None, sample_rate=48000, format="wav"):
         if save_path is None:
             logger.warning("save_path is None, using default path ./outputs/")
-            base_path = f"./outputs"
+            base_path = "./outputs"
             ensure_directory_exists(base_path)
-            output_path_wav = (
-                f"{base_path}/output_{time.strftime('%Y%m%d%H%M%S')}_{idx}."+format
-            )
+            output_path_wav = f"{base_path}/output_{time.strftime('%Y%m%d%H%M%S')}_{idx}." + format
         else:
             ensure_directory_exists(os.path.dirname(save_path))
             if os.path.isdir(save_path):
-                logger.info(f"Provided save_path '{save_path}' is a directory. Appending timestamped filename.")
+                logger.info("Provided save_path '{}' is a directory. Appending timestamped filename.", save_path)
                 output_path_wav = os.path.join(save_path, f"output_{time.strftime('%Y%m%d%H%M%S')}_{idx}."+format)
             else:
                 output_path_wav = save_path
 
         target_wav = target_wav.float()
-        logger.info(f"Saving audio to {output_path_wav}")
-        torchaudio.save(
-            output_path_wav, target_wav, sample_rate=sample_rate, format=format
-        )
+        logger.info("Saving audio to {}", output_path_wav)
+        torchaudio.save(output_path_wav, target_wav, sample_rate=sample_rate, format=format)
         return output_path_wav
 
     @cpu_offload("music_dcae")
