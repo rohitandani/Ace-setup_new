@@ -317,9 +317,7 @@ class ACEStepPipeline:
         return last_hidden_states, attention_mask
 
     @cpu_offload("text_encoder_model")
-    def get_text_embeddings_null(
-        self, texts, text_max_length=256, tau=0.01, l_min=8, l_max=10
-    ):
+    def get_text_embeddings_null(self, texts, text_max_length=256, tau=0.01, l_min=8, l_max=10):
         inputs = self.text_tokenizer(
             texts,
             return_tensors="pt",
