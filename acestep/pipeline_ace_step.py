@@ -443,11 +443,11 @@ class ACEStepPipeline:
         do_classifier_free_guidance=False,
         guidance_scale=1.0,
         target_guidance_scale=1.0,
-        cfg_type="apg",
         attention_mask=None,
         momentum_buffer=None,
         momentum_buffer_tar=None,
         return_src_pred=True,
+        cfg_type="apg", # ATTN: NEVER SET OR USED BY OTHER FUNCS, OLD?
     ):
         noise_pred_src = None
         if return_src_pred:
@@ -508,10 +508,7 @@ class ACEStepPipeline:
         target_guidance_scale = guidance_scale
         bsz = encoder_text_hidden_states.shape[0]
 
-        scheduler = FlowMatchEulerDiscreteScheduler(
-            num_train_timesteps=1000,
-            shift=3.0,
-        )
+        scheduler = FlowMatchEulerDiscreteScheduler(1000, 3.0)
 
         T_steps = infer_steps
         frame_length = src_latents.shape[-1]
@@ -522,44 +519,20 @@ class ACEStepPipeline:
         if do_classifier_free_guidance:
             attention_mask = torch.cat([attention_mask] * 2, dim=0)
 
-            encoder_text_hidden_states = torch.cat(
-                [
-                    encoder_text_hidden_states,
-                    torch.zeros_like(encoder_text_hidden_states),
-                ],
-                0,
-            )
+            encoder_text_hidden_states = torch.cat([encoder_text_hidden_states, torch.zeros_like(encoder_text_hidden_states)], 0)
             text_attention_mask = torch.cat([text_attention_mask] * 2, dim=0)
 
-            target_encoder_text_hidden_states = torch.cat(
-                [
-                    target_encoder_text_hidden_states,
-                    torch.zeros_like(target_encoder_text_hidden_states),
-                ],
-                0,
-            )
-            target_text_attention_mask = torch.cat(
-                [target_text_attention_mask] * 2, dim=0
-            )
+            target_encoder_text_hidden_states = torch.cat([target_encoder_text_hidden_states, torch.zeros_like(target_encoder_text_hidden_states)], 0)
+            target_text_attention_mask = torch.cat([target_text_attention_mask] * 2, dim=0)
 
-            speaker_embds = torch.cat(
-                [speaker_embds, torch.zeros_like(speaker_embds)], 0
-            )
-            target_speaker_embeds = torch.cat(
-                [target_speaker_embeds, torch.zeros_like(target_speaker_embeds)], 0
-            )
+            speaker_embds = torch.cat([speaker_embds, torch.zeros_like(speaker_embds)], 0)
+            target_speaker_embeds = torch.cat([target_speaker_embeds, torch.zeros_like(target_speaker_embeds)], 0)
 
-            lyric_token_ids = torch.cat(
-                [lyric_token_ids, torch.zeros_like(lyric_token_ids)], 0
-            )
+            lyric_token_ids = torch.cat([lyric_token_ids, torch.zeros_like(lyric_token_ids)], 0)
             lyric_mask = torch.cat([lyric_mask, torch.zeros_like(lyric_mask)], 0)
 
-            target_lyric_token_ids = torch.cat(
-                [target_lyric_token_ids, torch.zeros_like(target_lyric_token_ids)], 0
-            )
-            target_lyric_mask = torch.cat(
-                [target_lyric_mask, torch.zeros_like(target_lyric_mask)], 0
-            )
+            target_lyric_token_ids = torch.cat([target_lyric_token_ids, torch.zeros_like(target_lyric_token_ids)], 0)
+            target_lyric_mask = torch.cat([target_lyric_mask, torch.zeros_like(target_lyric_mask)], 0)
 
         momentum_buffer = MomentumBuffer()
         momentum_buffer_tar = MomentumBuffer()
@@ -572,7 +545,6 @@ class ACEStepPipeline:
         logger.info("flowedit start from {} to {}", n_min, n_max)
 
         for i, t in tqdm(enumerate(timesteps), total=T_steps):
-
             if i < n_min:
                 continue
 
@@ -587,37 +559,13 @@ class ACEStepPipeline:
                 # Calculate the average of the V predictions
                 V_delta_avg = torch.zeros_like(x_src)
                 for k in range(n_avg):
-                    fwd_noise = randn_tensor(
-                        shape=x_src.shape,
-                        generator=random_generators,
-                        device=self.device,
-                        dtype=self.dtype,
-                    )
+                    fwd_noise = randn_tensor(x_src.shape, random_generators, self.device, self.dtype)
 
                     zt_src = (1 - t_i) * x_src + (t_i) * fwd_noise
 
                     zt_tar = zt_edit + zt_src - x_src
 
-                    Vt_src, Vt_tar = self.calc_v(
-                        zt_src=zt_src,
-                        zt_tar=zt_tar,
-                        t=t,
-                        encoder_text_hidden_states=encoder_text_hidden_states,
-                        text_attention_mask=text_attention_mask,
-                        target_encoder_text_hidden_states=target_encoder_text_hidden_states,
-                        target_text_attention_mask=target_text_attention_mask,
-                        speaker_embds=speaker_embds,
-                        target_speaker_embeds=target_speaker_embeds,
-                        lyric_token_ids=lyric_token_ids,
-                        lyric_mask=lyric_mask,
-                        target_lyric_token_ids=target_lyric_token_ids,
-                        target_lyric_mask=target_lyric_mask,
-                        do_classifier_free_guidance=do_classifier_free_guidance,
-                        guidance_scale=guidance_scale,
-                        target_guidance_scale=target_guidance_scale,
-                        attention_mask=attention_mask,
-                        momentum_buffer=momentum_buffer,
-                    )
+                    Vt_src, Vt_tar = self.calc_v(zt_src, zt_tar, t, encoder_text_hidden_states, text_attention_mask, target_encoder_text_hidden_states, target_text_attention_mask, speaker_embds, target_speaker_embeds, lyric_token_ids, lyric_mask, target_lyric_token_ids, target_lyric_mask, do_classifier_free_guidance, guidance_scale, target_guidance_scale, attention_mask, momentum_buffer)
                     V_delta_avg += (1 / n_avg) * (Vt_tar - Vt_src) # - (hfg - 1) * (x_src)
 
                 zt_edit = zt_edit.to(torch.float32) # arbitrary, should be settable for compatibility
@@ -633,38 +581,13 @@ class ACEStepPipeline:
 
             else:  # i >= T_steps-n_min # regular sampling for last n_min steps
                 if i == n_max:
-                    fwd_noise = randn_tensor(
-                        shape=x_src.shape,
-                        generator=random_generators,
-                        device=self.device,
-                        dtype=self.dtype,
-                    )
+                    fwd_noise = randn_tensor(x_src.shape, random_generators, self.device, self.dtype)
                     scheduler._init_step_index(t)
                     sigma = scheduler.sigmas[scheduler.step_index]
                     xt_src = sigma * fwd_noise + (1.0 - sigma) * x_src
                     xt_tar = zt_edit + xt_src - x_src
 
-                _, Vt_tar = self.calc_v(
-                    zt_src=None,
-                    zt_tar=xt_tar,
-                    t=t,
-                    encoder_text_hidden_states=encoder_text_hidden_states,
-                    text_attention_mask=text_attention_mask,
-                    target_encoder_text_hidden_states=target_encoder_text_hidden_states,
-                    target_text_attention_mask=target_text_attention_mask,
-                    speaker_embds=speaker_embds,
-                    target_speaker_embeds=target_speaker_embeds,
-                    lyric_token_ids=lyric_token_ids,
-                    lyric_mask=lyric_mask,
-                    target_lyric_token_ids=target_lyric_token_ids,
-                    target_lyric_mask=target_lyric_mask,
-                    do_classifier_free_guidance=do_classifier_free_guidance,
-                    guidance_scale=guidance_scale,
-                    target_guidance_scale=target_guidance_scale,
-                    attention_mask=attention_mask,
-                    momentum_buffer_tar=momentum_buffer_tar,
-                    return_src_pred=False,
-                )
+                _, Vt_tar = self.calc_v(None, xt_tar, t, encoder_text_hidden_states, text_attention_mask, target_encoder_text_hidden_states, target_text_attention_mask, speaker_embds, target_speaker_embeds, lyric_token_ids, lyric_mask, target_lyric_token_ids, target_lyric_mask, do_classifier_free_guidance, guidance_scale, target_guidance_scale, attention_mask, momentum_buffer_tar=momentum_buffer_tar, return_src_pred=False)
 
                 xt_tar = xt_tar.to(torch.float32)
                 if scheduler_type != "pingpong":
@@ -774,27 +697,15 @@ class ACEStepPipeline:
         else:
             timesteps, num_inference_steps = retrieve_timesteps(scheduler, infer_steps, self.device)
 
-        target_latents = randn_tensor(
-            shape=(bsz, 8, 16, frame_length),
-            generator=random_generators,
-            device=self.device,
-            dtype=self.dtype,
-        )
+        target_latents = randn_tensor((bsz, 8, 16, frame_length), random_generators, self.device, self.dtype)
 
         is_repaint = False
         is_extend = False
 
         if add_retake_noise:
             n_min = int(infer_steps * (1 - retake_variance))
-            retake_variance = (
-                torch.tensor(retake_variance * math.pi / 2).to(self.device).to(self.dtype)
-            )
-            retake_latents = randn_tensor(
-                shape=(bsz, 8, 16, frame_length),
-                generator=retake_random_generators,
-                device=self.device,
-                dtype=self.dtype,
-            )
+            retake_variance = torch.tensor(retake_variance * math.pi / 2).to(self.device).to(self.dtype)
+            retake_latents = randn_tensor((bsz, 8, 16, frame_length), retake_random_generators, self.device, self.dtype)
             repaint_start_frame = int(repaint_start * 44100 / 512 / 8)
             repaint_end_frame = int(repaint_end * 44100 / 512 / 8)
             x0 = src_latents
