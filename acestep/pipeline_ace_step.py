@@ -364,16 +364,13 @@ class ACEStepPipeline:
                     processed_input_seeds = list(map(int, manual_seeds.split(",")))
                 elif manual_seeds.isdigit():
                     processed_input_seeds = int(manual_seeds)
-            elif isinstance(manual_seeds, list) and all(
-                isinstance(s, int) for s in manual_seeds
-            ):
+            elif isinstance(manual_seeds, list) and all(isinstance(s, int) for s in manual_seeds):
                 if len(manual_seeds) > 0:
                     processed_input_seeds = list(manual_seeds)
             elif isinstance(manual_seeds, int):
                 processed_input_seeds = manual_seeds
-        random_generators = [
-            torch.Generator(device=self.device) for _ in range(batch_size)
-        ]
+
+        random_generators = [torch.Generator(device=self.device) for _ in range(batch_size)]
         actual_seeds = []
         for i in range(batch_size):
             current_seed_for_generator = None
