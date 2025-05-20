@@ -155,15 +155,15 @@ class ACEStepPipeline:
                     break
             
             if all_dirs_exist:
-                logger.info(f"Load models from: {checkpoint_dir}")
+                logger.info("Load models from: {}", checkpoint_dir)
                 checkpoint_dir_models = checkpoint_dir
         
         if checkpoint_dir_models is None:
             if checkpoint_dir is None:
-                logger.info(f"Download models from Hugging Face: {repo}")
+                logger.info("Download models from Hugging Face: {}", repo)
                 checkpoint_dir_models = snapshot_download(repo)
             else:
-                logger.info(f"Download models from Hugging Face: {repo}, cache to: {checkpoint_dir}")
+                logger.info("Download models from Hugging Face: {}, cache to: {}", repo, checkpoint_dir)
                 checkpoint_dir_models = snapshot_download(repo, cache_dir=checkpoint_dir)
         return checkpoint_dir_models
 
