@@ -612,7 +612,7 @@ class ACEStepPipeline:
         n_min = int(infer_steps * n_min)
         n_max = int(infer_steps * n_max)
 
-        logger.info("flowedit start from {} to {}".format(n_min, n_max))
+        logger.info("flowedit start from {} to {}", n_min, n_max)
 
         for i, t in tqdm(enumerate(timesteps), total=T_steps):
 
