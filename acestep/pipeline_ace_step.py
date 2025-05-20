@@ -275,7 +275,7 @@ class ACEStepPipeline:
 
     @cpu_offload("text_encoder_model")
     def get_text_embeddings(self, texts, text_max_length=256):
-        inputs = self.text_tokenizer(texts, padding=True, truncation=True, max_length=text_max_length)
+        inputs = self.text_tokenizer(texts, return_tensors="pt", padding=True, truncation=True, max_length=text_max_length)
         inputs = {key: value.to(self.device) for key, value in inputs.items()}
 
         if self.text_encoder_model.device != self.device:
@@ -289,7 +289,7 @@ class ACEStepPipeline:
 
     @cpu_offload("text_encoder_model")
     def get_text_embeddings_null(self, texts, text_max_length=256, tau=0.01, l_min=8, l_max=10):
-        inputs = self.text_tokenizer(texts, padding=True, truncation=True, max_length=text_max_length)
+        inputs = self.text_tokenizer(texts, return_tensors="pt", padding=True, truncation=True, max_length=text_max_length)
 
         inputs = {key: value.to(self.device) for key, value in inputs.items()}
         if self.text_encoder_model.device != self.device:
