@@ -1423,7 +1423,6 @@ class ACEStepPipeline:
         batch_size: int = 1,
         debug: bool = False,
     ):
-
         start_time = time.time()
 
         if audio2audio_enable and ref_audio_input is not None:
@@ -1438,14 +1437,12 @@ class ACEStepPipeline:
 
         self.load_lora(lora_name_or_path, lora_weight)
         load_model_cost = time.time() - start_time
-        logger.info(f"Model loaded in {load_model_cost:.2f} seconds.")
+        logger.info("Model loaded in {:.2f} seconds.", load_model_cost)
 
         start_time = time.time()
 
         random_generators, actual_seeds = self.set_seeds(batch_size, manual_seeds)
-        retake_random_generators, actual_retake_seeds = self.set_seeds(
-            batch_size, retake_seeds
-        )
+        retake_random_generators, actual_retake_seeds = self.set_seeds(batch_size, retake_seeds)
 
         if isinstance(oss_steps, str) and len(oss_steps) > 0:
             oss_steps = list(map(int, oss_steps.split(",")))
@@ -1471,22 +1468,12 @@ class ACEStepPipeline:
         if len(lyrics) > 0:
             lyric_token_idx = self.tokenize_lyrics(lyrics, debug=debug)
             lyric_mask = [1] * len(lyric_token_idx)
-            lyric_token_idx = (
-                torch.tensor(lyric_token_idx)
-                .unsqueeze(0)
-                .to(self.device)
-                .repeat(batch_size, 1)
-            )
-            lyric_mask = (
-                torch.tensor(lyric_mask)
-                .unsqueeze(0)
-                .to(self.device)
-                .repeat(batch_size, 1)
-            )
+            lyric_token_idx = torch.tensor(lyric_token_idx).unsqueeze(0).to(self.device).repeat(batch_size, 1)
+            lyric_mask = torch.tensor(lyric_mask).unsqueeze(0).to(self.device).repeat(batch_size, 1)
 
         if audio_duration <= 0:
             audio_duration = random.uniform(30.0, 240.0)
-            logger.info(f"random audio duration: {audio_duration}")
+            logger.info("random audio duration: {}", audio_duration)
 
         end_time = time.time()
         preprocess_time_cost = end_time - start_time
@@ -1501,45 +1488,27 @@ class ACEStepPipeline:
         src_latents = None
         if src_audio_path is not None:
             assert src_audio_path is not None and task in (
-                "repaint",
-                "edit",
-                "extend",
+                "repaint", "edit", "extend",
             ), "src_audio_path is required for retake/repaint/extend task"
-            assert os.path.exists(
-                src_audio_path
-            ), f"src_audio_path {src_audio_path} does not exist"
+            assert os.path.exists(src_audio_path), f"src_audio_path {src_audio_path} does not exist"
             src_latents = self.infer_latents(src_audio_path)
         
         ref_latents = None
         if ref_audio_input is not None and audio2audio_enable:
             assert ref_audio_input is not None, "ref_audio_input is required for audio2audio task"
-            assert os.path.exists(
-                ref_audio_input
-            ), f"ref_audio_input {ref_audio_input} does not exist"
+            assert os.path.exists(ref_audio_input), f"ref_audio_input {ref_audio_input} does not exist"
             ref_latents = self.infer_latents(ref_audio_input)
 
         if task == "edit":
             texts = [edit_target_prompt]
-            target_encoder_text_hidden_states, target_text_attention_mask = (
-                self.get_text_embeddings(texts)
-            )
-            target_encoder_text_hidden_states = (
-                target_encoder_text_hidden_states.repeat(batch_size, 1, 1)
-            )
-            target_text_attention_mask = target_text_attention_mask.repeat(
-                batch_size, 1
-            )
+            target_encoder_text_hidden_states, target_text_attention_mask = self.get_text_embeddings(texts)
+            target_encoder_text_hidden_states = target_encoder_text_hidden_states.repeat(batch_size, 1, 1)
+            target_text_attention_mask = target_text_attention_mask.repeat(batch_size, 1)
 
-            target_lyric_token_idx = (
-                torch.tensor([0]).repeat(batch_size, 1).to(self.device).long()
-            )
-            target_lyric_mask = (
-                torch.tensor([0]).repeat(batch_size, 1).to(self.device).long()
-            )
+            target_lyric_token_idx = torch.tensor([0]).repeat(batch_size, 1).to(self.device).long()
+            target_lyric_mask = torch.tensor([0]).repeat(batch_size, 1).to(self.device).long()
             if len(edit_target_lyrics) > 0:
-                target_lyric_token_idx = self.tokenize_lyrics(
-                    edit_target_lyrics, debug=True
-                )
+                target_lyric_token_idx = self.tokenize_lyrics(edit_target_lyrics, debug=True)
                 target_lyric_mask = [1] * len(target_lyric_token_idx)
                 target_lyric_token_idx = (
                     torch.tensor(target_lyric_token_idx)
@@ -1672,9 +1641,7 @@ class ACEStepPipeline:
         }
         # save input_params_json
         for output_audio_path in output_paths:
-            input_params_json_save_path = output_audio_path.replace(
-                f".{format}", "_input_params.json"
-            )
+            input_params_json_save_path = output_audio_path.replace(f".{format}", "_input_params.json")
             input_params_json["audio_path"] = output_audio_path
             with open(input_params_json_save_path, "w", encoding="utf-8") as f:
                 json.dump(input_params_json, f, indent=4, ensure_ascii=False)
