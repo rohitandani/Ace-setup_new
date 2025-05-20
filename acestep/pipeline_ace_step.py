@@ -722,42 +722,18 @@ class ACEStepPipeline:
         target_latents = zt_edit if xt_tar is None else xt_tar
         return target_latents
 
-    def add_latents_noise(
-        self,
-        gt_latents,
-        sigma_max,
-        noise,
-        scheduler_type,
-        infer_steps,
-    ):
-
+    def add_latents_noise(self, gt_latents, sigma_max, noise, scheduler_type, infer_steps,):
         bsz = gt_latents.shape[0]
         if scheduler_type == "euler":
-            scheduler = FlowMatchEulerDiscreteScheduler(
-                num_train_timesteps=1000,
-                shift=3.0,
-                sigma_max=sigma_max,
-            )
+            scheduler = FlowMatchEulerDiscreteScheduler(1000, 3.0, sigma_max=sigma_max)
         elif scheduler_type == "heun":
-            scheduler = FlowMatchHeunDiscreteScheduler(
-                num_train_timesteps=1000,
-                shift=3.0,
-                sigma_max=sigma_max,
-            )
+            scheduler = FlowMatchHeunDiscreteScheduler(1000, 3.0, sigma_max=sigma_max)
         elif scheduler_type == "pingpong":
-            scheduler = FlowMatchPingPongScheduler(
-                num_train_timesteps=1000,
-                shift=3.0,
-                sigma_max=sigma_max
-            )
+            scheduler = FlowMatchPingPongScheduler(1000, 3.0, sigma_max=sigma_max)
 
         infer_steps = int(sigma_max * infer_steps)
-        timesteps, num_inference_steps = retrieve_timesteps(
-            scheduler,
-            num_inference_steps=infer_steps,
-            device=self.device,
-            timesteps=None,
-        )
+        timesteps, num_inference_steps = retrieve_timesteps(scheduler, infer_steps, self.device, None)
+
         noisy_image = gt_latents * (1 - scheduler.sigma_max) + noise * scheduler.sigma_max
         logger.info(f"{scheduler.sigma_min=} {scheduler.sigma_max=} {timesteps=} {num_inference_steps=}")
         return noisy_image, timesteps, scheduler, num_inference_steps
