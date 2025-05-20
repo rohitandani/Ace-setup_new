@@ -1375,7 +1375,8 @@ class ACEStepPipeline:
             if self.lora_path != "none":
                 self.ace_step_transformer.unload_lora()
             self.ace_step_transformer.load_lora_adapter(os.path.join(lora_download_path, "pytorch_lora_weights.safetensors"), adapter_name="ace_step_lora", with_alpha=True, prefix=None)
-            logger.info(f"Loading lora weights from: {lora_name_or_path} download path is: {lora_download_path}")
+
+            logger.info("Loading lora weights from: {} download path is: {}", lora_name_or_path, lora_download_path)
             set_weights_and_activate_adapters(self.ace_step_transformer,["ace_step_lora"], [lora_weight])
             self.lora_path = lora_name_or_path
         elif self.lora_path != "none" and lora_name_or_path == "none":
