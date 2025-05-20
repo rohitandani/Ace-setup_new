@@ -451,10 +451,9 @@ class ACEStepPipeline:
     ):
         noise_pred_src = None
         if return_src_pred:
-            src_latent_model_input = (
-                torch.cat([zt_src, zt_src]) if do_classifier_free_guidance else zt_src
-            )
+            src_latent_model_input = torch.cat([zt_src, zt_src]) if do_classifier_free_guidance else zt_src
             timestep = t.expand(src_latent_model_input.shape[0])
+
             # source
             noise_pred_src = self.ace_step_transformer(
                 hidden_states=src_latent_model_input,
@@ -472,18 +471,9 @@ class ACEStepPipeline:
                     2
                 )
                 if cfg_type == "apg":
-                    noise_pred_src = apg_forward(
-                        pred_cond=noise_pred_with_cond_src,
-                        pred_uncond=noise_pred_uncond_src,
-                        guidance_scale=guidance_scale,
-                        momentum_buffer=momentum_buffer,
-                    )
+                    noise_pred_src = apg_forward(noise_pred_with_cond_src, noise_pred_uncond_src, guidance_scale, momentum_buffer)
                 elif cfg_type == "cfg":
-                    noise_pred_src = cfg_forward(
-                        cond_output=noise_pred_with_cond_src,
-                        uncond_output=noise_pred_uncond_src,
-                        cfg_strength=guidance_scale,
-                    )
+                    noise_pred_src = cfg_forward(noise_pred_with_cond_src, noise_pred_uncond_src, guidance_scale)
 
         tar_latent_model_input = (
             torch.cat([zt_tar, zt_tar]) if do_classifier_free_guidance else zt_tar
@@ -504,18 +494,9 @@ class ACEStepPipeline:
         if do_classifier_free_guidance:
             noise_pred_with_cond_tar, noise_pred_uncond_tar = noise_pred_tar.chunk(2)
             if cfg_type == "apg":
-                noise_pred_tar = apg_forward(
-                    pred_cond=noise_pred_with_cond_tar,
-                    pred_uncond=noise_pred_uncond_tar,
-                    guidance_scale=target_guidance_scale,
-                    momentum_buffer=momentum_buffer_tar,
-                )
+                noise_pred_tar = apg_forward(noise_pred_with_cond_tar, noise_pred_uncond_tar, target_guidance_scale, momentum_buffer_tar)
             elif cfg_type == "cfg":
-                noise_pred_tar = cfg_forward(
-                    cond_output=noise_pred_with_cond_tar,
-                    uncond_output=noise_pred_uncond_tar,
-                    cfg_strength=target_guidance_scale,
-                )
+                noise_pred_tar = cfg_forward(noise_pred_with_cond_tar, noise_pred_uncond_tar, target_guidance_scale)
         return noise_pred_src, noise_pred_tar
 
     @torch.no_grad()
@@ -1106,40 +1087,15 @@ class ACEStepPipeline:
                         timestep=timestep,
                     ).sample
 
-                if (
-                    do_double_condition_guidance
-                    and noise_pred_with_only_text_cond is not None
-                ):
-                    noise_pred = cfg_double_condition_forward(
-                        cond_output=noise_pred_with_cond,
-                        uncond_output=noise_pred_uncond,
-                        only_text_cond_output=noise_pred_with_only_text_cond,
-                        guidance_scale_text=guidance_scale_text,
-                        guidance_scale_lyric=guidance_scale_lyric,
-                    )
+                if do_double_condition_guidance and noise_pred_with_only_text_cond is not None:
+                    noise_pred = cfg_double_condition_forward(noise_pred_with_cond, noise_pred_uncond, noise_pred_with_only_text_cond, guidance_scale_text, guidance_scale_lyric)
 
                 elif cfg_type == "apg":
-                    noise_pred = apg_forward(
-                        pred_cond=noise_pred_with_cond,
-                        pred_uncond=noise_pred_uncond,
-                        guidance_scale=current_guidance_scale,
-                        momentum_buffer=momentum_buffer,
-                    )
+                    noise_pred = apg_forward(noise_pred_with_cond, noise_pred_uncond, current_guidance_scale, momentum_buffer)
                 elif cfg_type == "cfg":
-                    noise_pred = cfg_forward(
-                        cond_output=noise_pred_with_cond,
-                        uncond_output=noise_pred_uncond,
-                        cfg_strength=current_guidance_scale,
-                    )
+                    noise_pred = cfg_forward(noise_pred_with_cond, noise_pred_uncond, current_guidance_scale)
                 elif cfg_type == "cfg_star":
-                    noise_pred = cfg_zero_star(
-                        noise_pred_with_cond=noise_pred_with_cond,
-                        noise_pred_uncond=noise_pred_uncond,
-                        guidance_scale=current_guidance_scale,
-                        i=i,
-                        zero_steps=zero_steps,
-                        use_zero_init=use_zero_init,
-                    )
+                    noise_pred = cfg_zero_star(noise_pred_with_cond, noise_pred_uncond, current_guidance_scale, i, zero_steps, use_zero_init)
             else:
                 latent_model_input = latents
                 timestep = t.expand(latent_model_input.shape[0])
