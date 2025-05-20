@@ -181,26 +181,22 @@ class ACEStepPipeline:
         ace_step_checkpoint_path = os.path.join(checkpoint_dir, "ace_step_transformer")
         text_encoder_checkpoint_path = os.path.join(checkpoint_dir, "umt5-base")
 
+        # ACE
         self.ace_step_transformer = ACEStepTransformer2DModel.from_pretrained(
             ace_step_checkpoint_path, torch_dtype=self.dtype
         )
-        # self.ace_step_transformer.to(self.device).eval().to(self.dtype)
         if self.cpu_offload:
-            self.ace_step_transformer = (
-                self.ace_step_transformer.to("cpu").eval().to(self.dtype)
-            )
+            self.ace_step_transformer = self.ace_step_transformer.to("cpu").eval().to(self.dtype)
         else:
-            self.ace_step_transformer = (
-                self.ace_step_transformer.to(self.device).eval().to(self.dtype)
-            )
+            self.ace_step_transformer = self.ace_step_transformer.to(self.device).eval().to(self.dtype)
         if self.torch_compile:
             self.ace_step_transformer = torch.compile(self.ace_step_transformer)
 
+        # DCAE
         self.music_dcae = MusicDCAE(
             dcae_checkpoint_path=dcae_checkpoint_path,
-            vocoder_checkpoint_path=vocoder_checkpoint_path,
+            vocoder_checkpoint_path=vocoder_checkpoint_path
         )
-        # self.music_dcae.to(self.device).eval().to(self.dtype)
         if self.cpu_offload:  # might be redundant
             self.music_dcae = self.music_dcae.to("cpu").eval().to(self.dtype)
         else:
@@ -208,15 +204,10 @@ class ACEStepPipeline:
         if self.torch_compile:
             self.music_dcae = torch.compile(self.music_dcae)
 
-        lang_segment = LangSegment()
-        lang_segment.setfilters(language_filters.default)
-        self.lang_segment = lang_segment
-        self.lyric_tokenizer = VoiceBpeTokenizer()
-
+        # UMT5
         text_encoder_model = UMT5EncoderModel.from_pretrained(
             text_encoder_checkpoint_path, torch_dtype=self.dtype
         ).eval()
-        # text_encoder_model = text_encoder_model.to(self.device).to(self.dtype)
         if self.cpu_offload:
             text_encoder_model = text_encoder_model.to("cpu").eval().to(self.dtype)
         else:
@@ -226,51 +217,34 @@ class ACEStepPipeline:
         if self.torch_compile:
             self.text_encoder_model = torch.compile(self.text_encoder_model)
 
-        self.text_tokenizer = AutoTokenizer.from_pretrained(
-            text_encoder_checkpoint_path
-        )
+        # Lyric Tokenizer
+        lang_segment = LangSegment()
+        lang_segment.setfilters(language_filters.default)
+        self.lang_segment = lang_segment
+        self.lyric_tokenizer = VoiceBpeTokenizer()
+
+        # Text Tokenizer
+        self.text_tokenizer = AutoTokenizer.from_pretrained(text_encoder_checkpoint_path)
         self.loaded = True
 
         # compile
         if self.torch_compile:
             if export_quantized_weights:
-                from torchao.quantization import (
-                    quantize_,
-                    Int4WeightOnlyConfig,
-                )
+                from torchao.quantization import quantize_, Int4WeightOnlyConfig
 
                 group_size = 128
                 use_hqq = True
-                quantize_(
-                    self.ace_step_transformer,
-                    Int4WeightOnlyConfig(group_size=group_size, use_hqq=use_hqq),
-                )
-                quantize_(
-                    self.text_encoder_model,
-                    Int4WeightOnlyConfig(group_size=group_size, use_hqq=use_hqq),
-                )
+                quantize_(self.ace_step_transformer, Int4WeightOnlyConfig(group_size=group_size, use_hqq=use_hqq))
+                quantize_(self.text_encoder_model, Int4WeightOnlyConfig(group_size=group_size, use_hqq=use_hqq))
 
                 # save quantized weights
-                torch.save(
-                    self.ace_step_transformer.state_dict(),
-                    os.path.join(
-                        ace_step_checkpoint_path, "diffusion_pytorch_model_int4wo.bin"
-                    ),
-                )
-                print(
-                    "Quantized Weights Saved to: ",
-                    os.path.join(
-                        ace_step_checkpoint_path, "diffusion_pytorch_model_int4wo.bin"
-                    ),
-                )
-                torch.save(
-                    self.text_encoder_model.state_dict(),
-                    os.path.join(text_encoder_checkpoint_path, "pytorch_model_int4wo.bin"),
-                )
-                print(
-                    "Quantized Weights Saved to: ",
-                    os.path.join(text_encoder_checkpoint_path, "pytorch_model_int4wo.bin"),
-                )
+                pth = os.path.join(ace_step_checkpoint_path, "diffusion_pytorch_model_int4wo.bin")
+                torch.save(self.ace_step_transformer.state_dict(), pth)
+                print("Quantized Weights Saved to: ", pth)
+
+                pth = os.path.join(text_encoder_checkpoint_path, "pytorch_model_int4wo.bin")
+                torch.save(self.text_encoder_model.state_dict(), pth)
+                print("Quantized Weights Saved to: ", pth)
 
 
     def load_quantized_checkpoint(self, checkpoint_dir=None):
