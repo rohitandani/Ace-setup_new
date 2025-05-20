@@ -143,7 +143,7 @@ class ACEStepPipeline:
             # Log memory usage if in verbose mode
             allocated = torch.cuda.memory_allocated() / (1024 ** 3)
             reserved = torch.cuda.memory_reserved() / (1024 ** 3)
-            logger.info(f"GPU Memory: {allocated:.2f}GB allocated, {reserved:.2f}GB reserved")
+            logger.info("GPU Memory: {:.2f}GB allocated, {:.2f}GB reserved", allocated, reserved)
 
         # Collect Python garbage
         import gc
