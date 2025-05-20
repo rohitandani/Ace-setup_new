@@ -109,9 +109,7 @@ class ACEStepPipeline:
     ):
         if not checkpoint_dir:
             if persistent_storage_path is None:
-                checkpoint_dir = os.path.join(
-                    os.path.expanduser("~"), ".cache/ace-step/checkpoints"
-                )
+                checkpoint_dir = os.path.join(os.path.expanduser("~"), ".cache/ace-step/checkpoints")
                 os.makedirs(checkpoint_dir, exist_ok=True)
             else:
                 checkpoint_dir = os.path.join(persistent_storage_path, "checkpoints")
@@ -119,21 +117,17 @@ class ACEStepPipeline:
 
         self.checkpoint_dir = checkpoint_dir
         self.lora_path = "none"
-        device = (
-            torch.device(f"cuda:{device_id}")
-            if torch.cuda.is_available()
-            else torch.device("cpu")
-        )
-        if device.type == "cpu" and torch.backends.mps.is_available():
-            device = torch.device("mps")
+
+        self.device = torch.device(f"cuda:{device_id}") if torch.cuda.is_available() else torch.device("cpu")
+        if self.device.type == "cpu" and torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+
         self.dtype = torch.bfloat16 if dtype == "bfloat16" else torch.float32
-        if device.type == "mps" and self.dtype == torch.bfloat16:
-            self.dtype = torch.float16
-        if device.type == "mps":
+        if self.device.type == "mps":
             self.dtype = torch.float32
         if 'ACE_PIPELINE_DTYPE' in os.environ and len(os.environ['ACE_PIPELINE_DTYPE']):
             self.dtype = getattr(torch, os.environ['ACE_PIPELINE_DTYPE'])
-        self.device = device
+
         self.loaded = False
         self.torch_compile = torch_compile
         self.cpu_offload = cpu_offload
