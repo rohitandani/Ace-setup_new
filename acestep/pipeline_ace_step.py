@@ -425,10 +425,8 @@ class ACEStepPipeline:
                 else:
                     token_idx = self.lyric_tokenizer.encode(line, lang)
                 if debug:
-                    toks = self.lyric_tokenizer.batch_decode(
-                        [[tok_id] for tok_id in token_idx]
-                    )
-                    logger.info(f"debbug {line} --> {lang} --> {toks}")
+                    toks = self.lyric_tokenizer.batch_decode([[tok_id] for tok_id in token_idx])
+                    logger.info("debbug {} --> {} --> {}", line, lang, toks)
                 lyric_token_idx = lyric_token_idx + token_idx + [2]
             except Exception as e:
                 print("tokenize error", e, "for line", line, "major_language", lang)
