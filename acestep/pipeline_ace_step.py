@@ -103,7 +103,6 @@ class ACEStepPipeline:
         if not checkpoint_dir:
             if persistent_storage_path is None:
                 checkpoint_dir = os.path.join(os.path.expanduser("~"), ".cache/ace-step/checkpoints")
-                os.makedirs(checkpoint_dir, exist_ok=True)
             else:
                 checkpoint_dir = os.path.join(persistent_storage_path, "checkpoints")
         ensure_directory_exists(checkpoint_dir)
