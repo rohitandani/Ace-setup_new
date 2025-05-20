@@ -557,9 +557,7 @@ class ACEStepPipeline:
         frame_length = src_latents.shape[-1]
         attention_mask = torch.ones(bsz, frame_length, device=self.device, dtype=self.dtype)
 
-        timesteps, T_steps = retrieve_timesteps(
-            scheduler, T_steps, self.device, timesteps=None
-        )
+        timesteps, T_steps = retrieve_timesteps(scheduler, T_steps, self.device)
 
         if do_classifier_free_guidance:
             attention_mask = torch.cat([attention_mask] * 2, dim=0)
@@ -732,7 +730,7 @@ class ACEStepPipeline:
             scheduler = FlowMatchPingPongScheduler(1000, 3.0, sigma_max=sigma_max)
 
         infer_steps = int(sigma_max * infer_steps)
-        timesteps, num_inference_steps = retrieve_timesteps(scheduler, infer_steps, self.device, None)
+        timesteps, num_inference_steps = retrieve_timesteps(scheduler, infer_steps, self.device)
 
         noisy_image = gt_latents * (1 - scheduler.sigma_max) + noise * scheduler.sigma_max
         logger.info(f"{scheduler.sigma_min=} {scheduler.sigma_max=} {timesteps=} {num_inference_steps=}")
@@ -805,31 +803,16 @@ class ACEStepPipeline:
         if len(oss_steps) > 0:
             infer_steps = max(oss_steps)
             scheduler.set_timesteps
-            timesteps, num_inference_steps = retrieve_timesteps(
-                scheduler,
-                num_inference_steps=infer_steps,
-                device=self.device,
-                timesteps=None,
-            )
+            timesteps, num_inference_steps = retrieve_timesteps(scheduler, infer_steps, self.device)
             new_timesteps = torch.zeros(len(oss_steps), dtype=self.dtype, device=self.device)
             for idx in range(len(oss_steps)):
                 new_timesteps[idx] = timesteps[oss_steps[idx] - 1]
             num_inference_steps = len(oss_steps)
             sigmas = (new_timesteps / 1000).float().cpu().numpy()
-            timesteps, num_inference_steps = retrieve_timesteps(
-                scheduler,
-                num_inference_steps=num_inference_steps,
-                device=self.device,
-                sigmas=sigmas,
-            )
+            timesteps, num_inference_steps = retrieve_timesteps(scheduler, num_inference_steps, self.device, sigmas=sigmas)
             logger.info("oss_steps: {}, num_inference_steps: {} after remapping to timesteps {}", oss_steps, num_inference_steps, timesteps)
         else:
-            timesteps, num_inference_steps = retrieve_timesteps(
-                scheduler,
-                num_inference_steps=infer_steps,
-                device=self.device,
-                timesteps=None,
-            )
+            timesteps, num_inference_steps = retrieve_timesteps(scheduler, infer_steps, self.device)
 
         target_latents = randn_tensor(
             shape=(bsz, 8, 16, frame_length),
