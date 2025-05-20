@@ -801,48 +801,24 @@ class ACEStepPipeline:
         ref_latents=None,
     ):
 
-        logger.info(
-            "cfg_type: {}, guidance_scale: {}, omega_scale: {}".format(
-                cfg_type, guidance_scale, omega_scale
-            )
-        )
+        logger.info("cfg_type: {}, guidance_scale: {}, omega_scale: {}", cfg_type, guidance_scale, omega_scale)
         do_classifier_free_guidance = True
         if guidance_scale == 0.0 or guidance_scale == 1.0:
             do_classifier_free_guidance = False
 
         do_double_condition_guidance = False
-        if (
-            guidance_scale_text is not None
-            and guidance_scale_text > 1.0
-            and guidance_scale_lyric is not None
-            and guidance_scale_lyric > 1.0
-        ):
+        if guidance_scale_text is not None and guidance_scale_text > 1.0 and guidance_scale_lyric is not None and guidance_scale_lyric > 1.0:
             do_double_condition_guidance = True
-            logger.info(
-                "do_double_condition_guidance: {}, guidance_scale_text: {}, guidance_scale_lyric: {}".format(
-                    do_double_condition_guidance,
-                    guidance_scale_text,
-                    guidance_scale_lyric,
-                )
-            )
+            logger.info("do_double_condition_guidance: {}, guidance_scale_text: {}, guidance_scale_lyric: {}", do_double_condition_guidance, guidance_scale_text, guidance_scale_lyric)
 
         bsz = encoder_text_hidden_states.shape[0]
 
         if scheduler_type == "euler":
-            scheduler = FlowMatchEulerDiscreteScheduler(
-                num_train_timesteps=1000,
-                shift=3.0,
-            )
+            scheduler = FlowMatchEulerDiscreteScheduler(num_train_timesteps=1000, shift=3.0)
         elif scheduler_type == "heun":
-            scheduler = FlowMatchHeunDiscreteScheduler(
-                num_train_timesteps=1000,
-                shift=3.0,
-            )
+            scheduler = FlowMatchHeunDiscreteScheduler(num_train_timesteps=1000, shift=3.0)
         elif scheduler_type == "pingpong":
-            scheduler = FlowMatchPingPongScheduler(
-                num_train_timesteps=1000,
-                shift=3.0,
-            )
+            scheduler = FlowMatchPingPongScheduler(num_train_timesteps=1000, shift=3.0)
 
         frame_length = int(duration * 44100 / 512 / 8)
         if src_latents is not None:
@@ -871,9 +847,7 @@ class ACEStepPipeline:
                 device=self.device,
                 sigmas=sigmas,
             )
-            logger.info(
-                f"oss_steps: {oss_steps}, num_inference_steps: {num_inference_steps} after remapping to timesteps {timesteps}"
-            )
+            logger.info("oss_steps: {}, num_inference_steps: {} after remapping to timesteps {}", oss_steps, num_inference_steps, timesteps)
         else:
             timesteps, num_inference_steps = retrieve_timesteps(
                 scheduler,
@@ -916,23 +890,13 @@ class ACEStepPipeline:
             # TODO: train a mask aware repainting controlnet
             # to make sure mean = 0, std = 1
             if not is_repaint:
-                target_latents = (
-                    torch.cos(retake_variance) * target_latents
-                    + torch.sin(retake_variance) * retake_latents
-                )
+                target_latents = torch.cos(retake_variance) * target_latents + torch.sin(retake_variance) * retake_latents
             elif not is_extend:
                 # if repaint_end_frame
-                repaint_mask = torch.zeros(
-                    (bsz, 8, 16, frame_length), device=self.device, dtype=self.dtype
-                )
+                repaint_mask = torch.zeros((bsz, 8, 16, frame_length), device=self.device, dtype=self.dtype)
                 repaint_mask[:, :, :, repaint_start_frame:repaint_end_frame] = 1.0
-                repaint_noise = (
-                    torch.cos(retake_variance) * target_latents
-                    + torch.sin(retake_variance) * retake_latents
-                )
-                repaint_noise = torch.where(
-                    repaint_mask == 1.0, repaint_noise, target_latents
-                )
+                repaint_noise = torch.cos(retake_variance) * target_latents + torch.sin(retake_variance) * retake_latents
+                repaint_noise = torch.where(repaint_mask == 1.0, repaint_noise, target_latents)
                 zt_edit = x0.clone()
                 z0 = repaint_noise
             elif is_extend:
@@ -945,74 +909,60 @@ class ACEStepPipeline:
                 right_pad_frame_length = 0
                 right_trim_length = 0
                 left_trim_length = 0
+
                 if repaint_start_frame < 0:
                     left_pad_frame_length = abs(repaint_start_frame)
                     frame_length = left_pad_frame_length + gt_latents.shape[-1]
-                    extend_gt_latents = torch.nn.functional.pad(
-                        gt_latents, (left_pad_frame_length, 0), "constant", 0
-                    )
+                    extend_gt_latents = torch.nn.functional.pad(gt_latents, (left_pad_frame_length, 0), "constant", 0)
+
                     if frame_length > max_infer_fame_length:
                         right_trim_length = frame_length - max_infer_fame_length
-                        extend_gt_latents = extend_gt_latents[
-                            :, :, :, :max_infer_fame_length
-                        ]
-                        to_right_pad_gt_latents = extend_gt_latents[
-                            :, :, :, -right_trim_length:
-                        ]
+                        extend_gt_latents = extend_gt_latents[:, :, :, :max_infer_fame_length]
+                        to_right_pad_gt_latents = extend_gt_latents[:, :, :, -right_trim_length:]
                         frame_length = max_infer_fame_length
+
                     repaint_start_frame = 0
                     gt_latents = extend_gt_latents
 
                 if repaint_end_frame > src_latents_length:
                     right_pad_frame_length = repaint_end_frame - gt_latents.shape[-1]
                     frame_length = gt_latents.shape[-1] + right_pad_frame_length
-                    extend_gt_latents = torch.nn.functional.pad(
-                        gt_latents, (0, right_pad_frame_length), "constant", 0
-                    )
+                    extend_gt_latents = torch.nn.functional.pad(gt_latents, (0, right_pad_frame_length), "constant", 0)
+
                     if frame_length > max_infer_fame_length:
                         left_trim_length = frame_length - max_infer_fame_length
-                        extend_gt_latents = extend_gt_latents[
-                            :, :, :, -max_infer_fame_length:
-                        ]
-                        to_left_pad_gt_latents = extend_gt_latents[
-                            :, :, :, :left_trim_length
-                        ]
+                        extend_gt_latents = extend_gt_latents[:, :, :, -max_infer_fame_length:]
+                        to_left_pad_gt_latents = extend_gt_latents[:, :, :, :left_trim_length]
                         frame_length = max_infer_fame_length
+
                     repaint_end_frame = frame_length
                     gt_latents = extend_gt_latents
 
-                repaint_mask = torch.zeros(
-                    (bsz, 8, 16, frame_length), device=self.device, dtype=self.dtype
-                )
+                repaint_mask = torch.zeros((bsz, 8, 16, frame_length), device=self.device, dtype=self.dtype)
+
                 if left_pad_frame_length > 0:
                     repaint_mask[:, :, :, :left_pad_frame_length] = 1.0
                 if right_pad_frame_length > 0:
                     repaint_mask[:, :, :, -right_pad_frame_length:] = 1.0
+
                 x0 = gt_latents
                 padd_list = []
+
                 if left_pad_frame_length > 0:
                     padd_list.append(retake_latents[:, :, :, :left_pad_frame_length])
-                padd_list.append(
-                    target_latents[
-                        :,
-                        :,
-                        :,
-                        left_trim_length : target_latents.shape[-1] - right_trim_length,
-                    ]
-                )
+
+                padd_list.append(target_latents[:,:,:, left_trim_length : target_latents.shape[-1] - right_trim_length])
+
                 if right_pad_frame_length > 0:
                     padd_list.append(retake_latents[:, :, :, -right_pad_frame_length:])
+
                 target_latents = torch.cat(padd_list, dim=-1)
-                assert (
-                    target_latents.shape[-1] == x0.shape[-1]
-                ), f"{target_latents.shape=} {x0.shape=}"
+                assert target_latents.shape[-1] == x0.shape[-1], f"{target_latents.shape=} {x0.shape=}"
                 zt_edit = x0.clone()
                 z0 = target_latents
 
         if audio2audio_enable and ref_latents is not None:
-            logger.info(
-                f"audio2audio_enable: {audio2audio_enable}, ref_latents: {ref_latents.shape}"
-            )
+            logger.info("audio2audio_enable: {}, ref_latents: {}", audio2audio_enable, ref_latents.shape)
             target_latents, timesteps, scheduler, num_inference_steps = self.add_latents_noise(
                 gt_latents=ref_latents,
                 sigma_max=(1-ref_audio_strength),
@@ -1026,9 +976,7 @@ class ACEStepPipeline:
         # guidance interval
         start_idx = int(num_inference_steps * ((1 - guidance_interval) / 2))
         end_idx = int(num_inference_steps * (guidance_interval / 2 + 0.5))
-        logger.info(
-            f"start_idx: {start_idx}, end_idx: {end_idx}, num_inference_steps: {num_inference_steps}"
-        )
+        logger.info("start_idx: {}, end_idx: {}, num_inference_steps: {}", start_idx, end_idx, num_inference_steps)
 
         momentum_buffer = MomentumBuffer()
 
@@ -1040,14 +988,10 @@ class ACEStepPipeline:
                 return output
 
             for i in range(l_min, l_max):
-                handler = self.ace_step_transformer.lyric_encoder.encoders[
-                    i
-                ].self_attn.linear_q.register_forward_hook(hook)
+                handler = self.ace_step_transformer.lyric_encoder.encoders[i].self_attn.linear_q.register_forward_hook(hook)
                 handlers.append(handler)
 
-            encoder_hidden_states, encoder_hidden_mask = (
-                self.ace_step_transformer.encode(**inputs)
-            )
+            encoder_hidden_states, encoder_hidden_mask = self.ace_step_transformer.encode(**inputs)
 
             for hook in handlers:
                 hook.remove()
@@ -1113,9 +1057,7 @@ class ACEStepPipeline:
                     lyric_mask,
                 )
 
-        def forward_diffusion_with_temperature(
-            self, hidden_states, timestep, inputs, tau=0.01, l_min=15, l_max=20
-        ):
+        def forward_diffusion_with_temperature(self, hidden_states, timestep, inputs, tau=0.01, l_min=15, l_max=20):
             handlers = []
 
             def hook(module, input, output):
@@ -1123,18 +1065,13 @@ class ACEStepPipeline:
                 return output
 
             for i in range(l_min, l_max):
-                handler = self.ace_step_transformer.transformer_blocks[
-                    i
-                ].attn.to_q.register_forward_hook(hook)
-                handlers.append(handler)
-                handler = self.ace_step_transformer.transformer_blocks[
-                    i
-                ].cross_attn.to_q.register_forward_hook(hook)
+                handler = self.ace_step_transformer.transformer_blocks[i].attn.to_q.register_forward_hook(hook)
                 handlers.append(handler)
 
-            sample = self.ace_step_transformer.decode(
-                hidden_states=hidden_states, timestep=timestep, **inputs
-            ).sample
+                handler = self.ace_step_transformer.transformer_blocks[i].cross_attn.to_q.register_forward_hook(hook)
+                handlers.append(handler)
+
+            sample = self.ace_step_transformer.decode(hidden_states=hidden_states, timestep=timestep, **inputs).sample
 
             for hook in handlers:
                 hook.remove()
@@ -1150,7 +1087,7 @@ class ACEStepPipeline:
                     t_i = t / 1000
                     zt_src = (1 - t_i) * x0 + (t_i) * z0
                     target_latents = zt_edit + zt_src - x0
-                    logger.info(f"repaint start from {n_min} add {t_i} level of noise")
+                    logger.info("repaint start from {} add {} level of noise", n_min, t_i)
 
             # expand the latents if we are doing classifier free guidance
             latents = target_latents
@@ -1160,15 +1097,8 @@ class ACEStepPipeline:
                 # compute current guidance scale
                 if guidance_interval_decay > 0:
                     # Linearly interpolate to calculate the current guidance scale
-                    progress = (i - start_idx) / (
-                        end_idx - start_idx - 1
-                    )  # 归一化到[0,1]
-                    current_guidance_scale = (
-                        guidance_scale
-                        - (guidance_scale - min_guidance_scale)
-                        * progress
-                        * guidance_interval_decay
-                    )
+                    progress = (i - start_idx) / (end_idx - start_idx - 1)  # 归一化到[0,1]
+                    current_guidance_scale = guidance_scale - (guidance_scale - min_guidance_scale) * progress * guidance_interval_decay
                 else:
                     current_guidance_scale = guidance_scale
 
@@ -1186,10 +1116,7 @@ class ACEStepPipeline:
                 ).sample
 
                 noise_pred_with_only_text_cond = None
-                if (
-                    do_double_condition_guidance
-                    and encoder_hidden_states_no_lyric is not None
-                ):
+                if do_double_condition_guidance and encoder_hidden_states_no_lyric is not None:
                     noise_pred_with_only_text_cond = self.ace_step_transformer.decode(
                         hidden_states=latent_model_input,
                         attention_mask=attention_mask,
@@ -1278,9 +1205,7 @@ class ACEStepPipeline:
                 prev_sample = prev_sample.to(self.dtype)
                 target_latents = prev_sample
                 zt_src = (1 - t_im1) * x0 + (t_im1) * z0
-                target_latents = torch.where(
-                    repaint_mask == 1.0, target_latents, zt_src
-                )
+                target_latents = torch.where(repaint_mask == 1.0, target_latents, zt_src)
             else:
                 target_latents = scheduler.step(
                     model_output=noise_pred,
@@ -1293,13 +1218,9 @@ class ACEStepPipeline:
 
         if is_extend:
             if to_right_pad_gt_latents is not None:
-                target_latents = torch.cat(
-                    [target_latents, to_right_pad_gt_latents], dim=-1
-                )
+                target_latents = torch.cat([target_latents, to_right_pad_gt_latents], dim=-1)
             if to_left_pad_gt_latents is not None:
-                target_latents = torch.cat(
-                    [to_right_pad_gt_latents, target_latents], dim=0
-                )
+                target_latents = torch.cat([to_right_pad_gt_latents, target_latents], dim=0)
         return target_latents
 
     @cpu_offload("music_dcae")
