@@ -6,20 +6,30 @@ https://github.com/ace-step/ACE-Step
 Apache 2.0 License
 """
 
-import random
-import time
-import os
-import re
-
-import torch
-import torch.nn as nn
-from loguru import logger
-from tqdm import tqdm
 import json
 import math
-from huggingface_hub import hf_hub_download, snapshot_download
+import os
+import random
+import re
+import time
 
-# from diffusers.pipelines.pipeline_utils import DiffusionPipeline
+import librosa
+import torch
+import torch.nn as nn
+import torchaudio
+
+from acestep.apg_guidance import (
+    apg_forward,
+    MomentumBuffer,
+    cfg_forward,
+    cfg_zero_star,
+    cfg_double_condition_forward,
+)
+from acestep.cpu_offload import cpu_offload
+from acestep.language_segmentation import LangSegment, language_filters
+from acestep.models.ace_step_transformer import ACEStepTransformer2DModel
+from acestep.models.lyrics_utils.lyric_tokenizer import VoiceBpeTokenizer
+from acestep.music_dcae.music_dcae_pipeline import MusicDCAE
 from acestep.schedulers.scheduling_flow_match_euler_discrete import (
     FlowMatchEulerDiscreteScheduler,
 )
@@ -32,24 +42,15 @@ from acestep.schedulers.scheduling_flow_match_pingpong import (
 from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3 import (
     retrieve_timesteps,
 )
-from diffusers.utils.torch_utils import randn_tensor
 from diffusers.utils.peft_utils import set_weights_and_activate_adapters
+from diffusers.utils.torch_utils import randn_tensor
+from huggingface_hub import hf_hub_download, snapshot_download
+from loguru import logger
+from tqdm import tqdm
 from transformers import UMT5EncoderModel, AutoTokenizer
 
-from acestep.language_segmentation import LangSegment, language_filters
-from acestep.music_dcae.music_dcae_pipeline import MusicDCAE
-from acestep.models.ace_step_transformer import ACEStepTransformer2DModel
-from acestep.models.lyrics_utils.lyric_tokenizer import VoiceBpeTokenizer
-from acestep.apg_guidance import (
-    apg_forward,
-    MomentumBuffer,
-    cfg_forward,
-    cfg_zero_star,
-    cfg_double_condition_forward,
-)
-import torchaudio
-import librosa
-from .cpu_offload import cpu_offload
+
+# from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 
 
 torch.backends.cudnn.benchmark = False
