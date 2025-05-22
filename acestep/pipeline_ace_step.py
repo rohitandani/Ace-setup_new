@@ -110,6 +110,7 @@ class ACEStepPipeline:
         self.checkpoint_dir = checkpoint_dir
         self.lora_path = "none"
 
+        self.lora_weight = 1
         self.device = torch.device(f"cuda:{device_id}") if torch.cuda.is_available() else torch.device("cpu")
         if self.device.type == "cpu" and torch.backends.mps.is_available():
             self.device = torch.device("mps")
@@ -988,7 +989,7 @@ class ACEStepPipeline:
         return latents
 
     def load_lora(self, lora_name_or_path, lora_weight):
-        if lora_name_or_path != self.lora_path and lora_name_or_path != "none":
+        if (lora_name_or_path != self.lora_path or lora_weight != self.lora_weight) and lora_name_or_path != "none":
             if not os.path.exists(lora_name_or_path):
                 lora_download_path = snapshot_download(lora_name_or_path, cache_dir=self.checkpoint_dir)
             else:
@@ -997,9 +998,10 @@ class ACEStepPipeline:
                 self.ace_step_transformer.unload_lora()
             self.ace_step_transformer.load_lora_adapter(os.path.join(lora_download_path, "pytorch_lora_weights.safetensors"), adapter_name="ace_step_lora", with_alpha=True, prefix=None)
 
-            logger.info("Loading lora weights from: {} download path is: {}", lora_name_or_path, lora_download_path)
+            logger.info("Loading lora weights from: {} download path is: {} weight: {}", lora_name_or_path, lora_download_path, lora_weight)
             set_weights_and_activate_adapters(self.ace_step_transformer, ["ace_step_lora"], [lora_weight])
             self.lora_path = lora_name_or_path
+            self.lora_weight = lora_weight
 
         elif self.lora_path != "none" and lora_name_or_path == "none":
             logger.info("No lora weights to load.")
