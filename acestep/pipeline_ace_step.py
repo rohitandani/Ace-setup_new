@@ -13,9 +13,7 @@ import random
 import re
 import time
 
-import librosa
 import torch
-import torch.nn as nn
 import torchaudio
 
 from acestep.apg_guidance import (
@@ -36,7 +34,7 @@ from acestep.schedulers.scheduling_flow_match_pingpong import FlowMatchPingPongS
 from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3 import retrieve_timesteps
 from diffusers.utils.peft_utils import set_weights_and_activate_adapters
 from diffusers.utils.torch_utils import randn_tensor
-from huggingface_hub import hf_hub_download, snapshot_download
+from huggingface_hub import snapshot_download
 from loguru import logger
 from tqdm import tqdm
 from transformers import UMT5EncoderModel, AutoTokenizer
@@ -217,7 +215,7 @@ class ACEStepPipeline:
         # compile
         if self.torch_compile:
             if export_quantized_weights:
-                from torchao.quantization import quantize_, Int4WeightOnlyConfig
+                from torch.ao.quantization import quantize_, Int4WeightOnlyConfig
 
                 group_size = 128
                 use_hqq = True
@@ -233,7 +231,6 @@ class ACEStepPipeline:
                 torch.save(self.text_encoder_model.state_dict(), pth)
                 print("Quantized Weights Saved to: ", pth)
 
-
     def load_quantized_checkpoint(self, checkpoint_dir=None):
         checkpoint_dir = self.get_checkpoint_path(checkpoint_dir, REPO_ID_QUANT)
         dcae_checkpoint_path = os.path.join(checkpoint_dir, "music_dcae_f8c8")
@@ -247,7 +244,6 @@ class ACEStepPipeline:
         else:
             self.music_dcae.eval().to(self.dtype).to('cpu')
         self.music_dcae = torch.compile(self.music_dcae)
-
 
         self.ace_step_transformer = ACEStepTransformer2DModel.from_pretrained(ace_step_checkpoint_path)
         self.ace_step_transformer.eval().to(self.dtype).to('cpu')
