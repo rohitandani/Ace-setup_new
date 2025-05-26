@@ -197,7 +197,6 @@ def create_text2music_ui(
                     step=1,
                     value=60,
                     label="Infer Steps",
-
                 )
                 guidance_scale = gr.Slider(
                     minimum=0.0,
@@ -306,164 +305,177 @@ def create_text2music_ui(
         with gr.Column():
             outputs, input_params_json = create_output_ui()
 
-            # FIXME: not intuitive, fix layout
+            for i in range(2):
+                gr.Markdown('# ' + chr(0x200e)) # ToDo: find better way to space these out
+
             retake_variance = gr.Slider(
                 minimum=0.0, maximum=1.0, step=0.01, value=0.2, label="variance"
             )
             retake_seeds = gr.Textbox(
                 label="retake seeds (default None)", placeholder="", value=None
             )
-            with gr.Tab("retake"):
-                retake_bnt = gr.Button("Retake", variant="primary")
-                retake_outputs, retake_input_params_json = create_output_ui("Retake")
+            with gr.Tabs() as text2music_tabs:
+                def toggle_variance_interact(event_data: gr.SelectData):
+                    not_edit = event_data.value != 'edit'
+                    return [
+                        gr.update(interactive=not_edit),
+                        gr.update(interactive=not_edit),
+                    ]
+                text2music_tabs.select(
+                    fn=toggle_variance_interact,
+                    outputs=[retake_seeds, retake_variance]
+                )
+                with gr.Tab("retake"):
+                    retake_bnt = gr.Button("Retake", variant="primary")
+                    retake_outputs, retake_input_params_json = create_output_ui("Retake")
 
-            with gr.Tab("repainting"):
-                repaint_start = gr.Slider(
-                    minimum=0.0,
-                    maximum=240.0,
-                    step=0.01,
-                    value=0.0,
-                    label="Repaint Start Time",
-                )
-                repaint_end = gr.Slider(
-                    minimum=0.0,
-                    maximum=240.0,
-                    step=0.01,
-                    value=30.0,
-                    label="Repaint End Time",
-                )
-                repaint_source = gr.Radio(
-                    ["text2music", "last_repaint", "upload"],
-                    value="text2music",
-                    label="Repaint Source",
-                    elem_id="repaint_source",
-                )
+                with gr.Tab("repainting"):
+                    repaint_start = gr.Slider(
+                        minimum=0.0,
+                        maximum=240.0,
+                        step=0.01,
+                        value=0.0,
+                        label="Repaint Start Time",
+                    )
+                    repaint_end = gr.Slider(
+                        minimum=0.0,
+                        maximum=240.0,
+                        step=0.01,
+                        value=30.0,
+                        label="Repaint End Time",
+                    )
+                    repaint_source = gr.Radio(
+                        ["text2music", "last_repaint", "upload"],
+                        value="text2music",
+                        label="Repaint Source",
+                        elem_id="repaint_source",
+                    )
 
-                repaint_source_audio_upload = gr.Audio(
-                    label="Upload Audio",
-                    type="filepath",
-                    visible=False,
-                    elem_id="repaint_source_audio_upload",
-                    show_download_button=True,
-                )
-                repaint_source.change(
-                    fn=lambda x: gr.update(
-                        visible=x == "upload", elem_id="repaint_source_audio_upload"
-                    ),
-                    inputs=[repaint_source],
-                    outputs=[repaint_source_audio_upload],
-                )
+                    repaint_source_audio_upload = gr.Audio(
+                        label="Upload Audio",
+                        type="filepath",
+                        visible=False,
+                        elem_id="repaint_source_audio_upload",
+                        show_download_button=True,
+                    )
+                    repaint_source.change(
+                        fn=lambda x: gr.update(
+                            visible=x == "upload", elem_id="repaint_source_audio_upload"
+                        ),
+                        inputs=[repaint_source],
+                        outputs=[repaint_source_audio_upload],
+                    )
 
-                repaint_bnt = gr.Button("Repaint", variant="primary")
-                repaint_outputs, repaint_input_params_json = create_output_ui("Repaint")
+                    repaint_bnt = gr.Button("Repaint", variant="primary")
+                    repaint_outputs, repaint_input_params_json = create_output_ui("Repaint")
 
-            with gr.Tab("edit"):
-                edit_target_prompt = gr.Textbox(lines=2, label="Edit Tags", max_lines=4)
-                edit_target_lyrics = gr.Textbox(lines=9, label="Edit Lyrics", max_lines=13)
+                with gr.Tab("edit"):
+                    edit_target_prompt = gr.Textbox(lines=2, label="Edit Tags", max_lines=4)
+                    edit_target_lyrics = gr.Textbox(lines=9, label="Edit Lyrics", max_lines=13)
 
-                edit_type = gr.Radio(
-                    ["only_lyrics", "remix"],
-                    value="only_lyrics",
-                    label="Edit Type",
-                    elem_id="edit_type",
-                    info="`only_lyrics` will keep the whole song the same except lyrics difference. Make your diffrence smaller, e.g. one lyrc line change.\nremix can change the song melody and genre",
-                )
-                edit_n_min = gr.Slider(
-                    minimum=0.0,
-                    maximum=1.0,
-                    step=0.01,
-                    value=0.6,
-                    label="edit_n_min",
-                )
-                edit_n_max = gr.Slider(
-                    minimum=0.0,
-                    maximum=1.0,
-                    step=0.01,
-                    value=1.0,
-                    label="edit_n_max",
-                )
+                    edit_type = gr.Radio(
+                        ["only_lyrics", "remix"],
+                        value="only_lyrics",
+                        label="Edit Type",
+                        elem_id="edit_type",
+                        info="`only_lyrics` will keep the whole song the same except lyrics difference. Make your diffrence smaller, e.g. one lyrc line change.\nremix can change the song melody and genre",
+                    )
+                    edit_n_min = gr.Slider(
+                        minimum=0.0,
+                        maximum=1.0,
+                        step=0.01,
+                        value=0.6,
+                        label="edit_n_min",
+                    )
+                    edit_n_max = gr.Slider(
+                        minimum=0.0,
+                        maximum=1.0,
+                        step=0.01,
+                        value=1.0,
+                        label="edit_n_max",
+                    )
 
-                def edit_type_change_func(edit_type):
-                    if edit_type == "only_lyrics":
-                        n_min = 0.6
-                        n_max = 1.0
-                    elif edit_type == "remix":
-                        n_min = 0.2
-                        n_max = 0.4
-                    return n_min, n_max
+                    def edit_type_change_func(edit_type):
+                        if edit_type == "only_lyrics":
+                            n_min = 0.6
+                            n_max = 1.0
+                        elif edit_type == "remix":
+                            n_min = 0.2
+                            n_max = 0.4
+                        return n_min, n_max
 
-                edit_type.change(
-                    edit_type_change_func,
-                    inputs=[edit_type],
-                    outputs=[edit_n_min, edit_n_max],
-                )
+                    edit_type.change(
+                        edit_type_change_func,
+                        inputs=[edit_type],
+                        outputs=[edit_n_min, edit_n_max],
+                    )
 
-                edit_source = gr.Radio(
-                    ["text2music", "last_edit", "upload"],
-                    value="text2music",
-                    label="Edit Source",
-                    elem_id="edit_source",
-                )
-                edit_source_audio_upload = gr.Audio(
-                    label="Upload Audio",
-                    type="filepath",
-                    visible=False,
-                    elem_id="edit_source_audio_upload",
-                    show_download_button=True,
-                )
-                edit_source.change(
-                    fn=lambda x: gr.update(
-                        visible=x == "upload", elem_id="edit_source_audio_upload"
-                    ),
-                    inputs=[edit_source],
-                    outputs=[edit_source_audio_upload],
-                )
+                    edit_source = gr.Radio(
+                        ["text2music", "last_edit", "upload"],
+                        value="text2music",
+                        label="Edit Source",
+                        elem_id="edit_source",
+                    )
+                    edit_source_audio_upload = gr.Audio(
+                        label="Upload Audio",
+                        type="filepath",
+                        visible=False,
+                        elem_id="edit_source_audio_upload",
+                        show_download_button=True,
+                    )
+                    edit_source.change(
+                        fn=lambda x: gr.update(
+                            visible=x == "upload", elem_id="edit_source_audio_upload"
+                        ),
+                        inputs=[edit_source],
+                        outputs=[edit_source_audio_upload],
+                    )
 
-                edit_bnt = gr.Button("Edit", variant="primary")
-                edit_outputs, edit_input_params_json = create_output_ui("Edit")
+                    edit_bnt = gr.Button("Edit", variant="primary")
+                    edit_outputs, edit_input_params_json = create_output_ui("Edit")
 
-            with gr.Tab("extend"):
-                extend_seeds = gr.Textbox(
-                    label="extend seeds (default None)", placeholder="", value=None
-                )
-                left_extend_length = gr.Slider(
-                    minimum=0.0,
-                    maximum=240.0,
-                    step=0.01,
-                    value=0.0,
-                    label="Left Extend Length",
-                )
-                right_extend_length = gr.Slider(
-                    minimum=0.0,
-                    maximum=240.0,
-                    step=0.01,
-                    value=30.0,
-                    label="Right Extend Length",
-                )
-                extend_source = gr.Radio(
-                    ["text2music", "last_extend", "upload"],
-                    value="text2music",
-                    label="Extend Source",
-                    elem_id="extend_source",
-                )
+                with gr.Tab("extend"):
+                    extend_seeds = gr.Textbox(
+                        label="extend seeds (default None)", placeholder="", value=None
+                    )
+                    left_extend_length = gr.Slider(
+                        minimum=0.0,
+                        maximum=240.0,
+                        step=0.01,
+                        value=0.0,
+                        label="Left Extend Length",
+                    )
+                    right_extend_length = gr.Slider(
+                        minimum=0.0,
+                        maximum=240.0,
+                        step=0.01,
+                        value=30.0,
+                        label="Right Extend Length",
+                    )
+                    extend_source = gr.Radio(
+                        ["text2music", "last_extend", "upload"],
+                        value="text2music",
+                        label="Extend Source",
+                        elem_id="extend_source",
+                    )
 
-                extend_source_audio_upload = gr.Audio(
-                    label="Upload Audio",
-                    type="filepath",
-                    visible=False,
-                    elem_id="extend_source_audio_upload",
-                    show_download_button=True,
-                )
-                extend_source.change(
-                    fn=lambda x: gr.update(
-                        visible=x == "upload", elem_id="extend_source_audio_upload"
-                    ),
-                    inputs=[extend_source],
-                    outputs=[extend_source_audio_upload],
-                )
+                    extend_source_audio_upload = gr.Audio(
+                        label="Upload Audio",
+                        type="filepath",
+                        visible=False,
+                        elem_id="extend_source_audio_upload",
+                        show_download_button=True,
+                    )
+                    extend_source.change(
+                        fn=lambda x: gr.update(
+                            visible=x == "upload", elem_id="extend_source_audio_upload"
+                        ),
+                        inputs=[extend_source],
+                        outputs=[extend_source_audio_upload],
+                    )
 
-                extend_bnt = gr.Button("Extend", variant="primary")
-                extend_outputs, extend_input_params_json = create_output_ui("Extend")
+                    extend_bnt = gr.Button("Extend", variant="primary")
+                    extend_outputs, extend_input_params_json = create_output_ui("Extend")
 
     all_gradio_component_names = []
     all_gradio_components = []
