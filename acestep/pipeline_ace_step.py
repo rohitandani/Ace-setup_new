@@ -134,7 +134,7 @@ class ACEStepPipeline:
             # Log memory usage if in verbose mode
             allocated = torch.cuda.memory_allocated() / (1024 ** 3)
             reserved = torch.cuda.memory_reserved() / (1024 ** 3)
-            logger.info("GPU Memory: {:.2f}GB allocated, {:.2f}GB reserved", allocated, reserved)
+            logger.info("GPU Memory: %.2fGB allocated, %.2fGB reserved", allocated, reserved)
 
         # Collect Python garbage
         import gc
@@ -153,15 +153,15 @@ class ACEStepPipeline:
                     break
             
             if all_dirs_exist:
-                logger.info("Load models from: {}", checkpoint_dir)
+                logger.info("Load models from: %s", checkpoint_dir)
                 checkpoint_dir_models = checkpoint_dir
         
         if checkpoint_dir_models is None:
             if checkpoint_dir is None:
-                logger.info("Download models from Hugging Face: {}", repo)
+                logger.info("Download models from Hugging Face: %s", repo)
                 checkpoint_dir_models = snapshot_download(repo)
             else:
-                logger.info("Download models from Hugging Face: {}, cache to: {}", repo, checkpoint_dir)
+                logger.info("Download models from Hugging Face: %s, cache to: %s", repo, checkpoint_dir)
                 checkpoint_dir_models = snapshot_download(repo, cache_dir=checkpoint_dir)
 
         return checkpoint_dir_models
@@ -388,7 +388,7 @@ class ACEStepPipeline:
                     token_idx = self.lyric_tokenizer.encode(line, lang)
                 if debug:
                     toks = self.lyric_tokenizer.batch_decode([[tok_id] for tok_id in token_idx])
-                    logger.info("debbug {} --> {} --> {}", line, lang, toks)
+                    logger.info("debbug %s --> %s --> %s", line, lang, toks)
                 lyric_token_idx = lyric_token_idx + token_idx + [2]
             except Exception as e:
                 print("tokenize error", e, "for line", line, "major_language", lang)
@@ -517,7 +517,7 @@ class ACEStepPipeline:
         n_min = int(infer_steps * n_min)
         n_max = int(infer_steps * n_max)
 
-        logger.info("flowedit start from {} to {}", n_min, n_max)
+        logger.info("flowedit start from %d to %d", n_min, n_max)
 
         for i, t in tqdm(enumerate(timesteps), total=T_steps):
             if i < n_min:
@@ -634,7 +634,7 @@ class ACEStepPipeline:
         use_zero_init=True,
     ):
 
-        logger.info("cfg_type: {}, guidance_scale: {}, omega_scale: {}", cfg_type, guidance_scale, omega_scale)
+        logger.info("cfg_type: %s, guidance_scale: %.2f, omega_scale: %.2f", cfg_type, guidance_scale, omega_scale)
         do_classifier_free_guidance = True
         if guidance_scale == 0.0 or guidance_scale == 1.0:
             do_classifier_free_guidance = False
@@ -642,7 +642,7 @@ class ACEStepPipeline:
         do_double_condition_guidance = False
         if guidance_scale_text is not None and guidance_scale_text > 1.0 and guidance_scale_lyric is not None and guidance_scale_lyric > 1.0:
             do_double_condition_guidance = True
-            logger.info("do_double_condition_guidance: {}, guidance_scale_text: {}, guidance_scale_lyric: {}", do_double_condition_guidance, guidance_scale_text, guidance_scale_lyric)
+            logger.info("do_double_condition_guidance: %s, guidance_scale_text: %.2f, guidance_scale_lyric: %.2f", do_double_condition_guidance, guidance_scale_text, guidance_scale_lyric)
 
         bsz = encoder_text_hidden_states.shape[0]
 
@@ -669,7 +669,7 @@ class ACEStepPipeline:
             num_inference_steps = len(oss_steps)
             sigmas = (new_timesteps / 1000).float().cpu().numpy()
             timesteps, num_inference_steps = retrieve_timesteps(scheduler, num_inference_steps, self.device, sigmas=sigmas)
-            logger.info("oss_steps: {}, num_inference_steps: {} after remapping to timesteps {}", oss_steps, num_inference_steps, timesteps)
+            logger.info("oss_steps: %d, num_inference_steps: %d after remapping to timesteps %s", oss_steps, num_inference_steps, timesteps)
         else:
             timesteps, num_inference_steps = retrieve_timesteps(scheduler, infer_steps, self.device)
 
@@ -767,7 +767,7 @@ class ACEStepPipeline:
                 z0 = target_latents
 
         if audio2audio_enable and ref_latents is not None:
-            logger.info("audio2audio_enable: {}, ref_latents: {}", audio2audio_enable, ref_latents.shape)
+            logger.info("audio2audio_enable: %s, ref_latents: %s", audio2audio_enable, ref_latents.shape)
             target_latents, timesteps, scheduler, num_inference_steps = self.add_latents_noise(ref_latents, (1-ref_audio_strength), target_latents, scheduler_type, infer_steps)
 
         attention_mask = torch.ones(bsz, frame_length, device=self.device, dtype=self.dtype)
@@ -775,7 +775,7 @@ class ACEStepPipeline:
         # guidance interval
         start_idx = int(num_inference_steps * ((1 - guidance_interval) / 2))
         end_idx = int(num_inference_steps * (guidance_interval / 2 + 0.5))
-        logger.info("start_idx: {}, end_idx: {}, num_inference_steps: {}", start_idx, end_idx, num_inference_steps)
+        logger.info("start_idx: %d, end_idx: %d, num_inference_steps: %d", start_idx, end_idx, num_inference_steps)
 
         momentum_buffer = MomentumBuffer()
 
@@ -855,7 +855,7 @@ class ACEStepPipeline:
                     t_i = t / 1000
                     zt_src = (1 - t_i) * x0 + (t_i) * z0
                     target_latents = zt_edit + zt_src - x0
-                    logger.info("repaint start from {} add {} level of noise", n_min, t_i)
+                    logger.info("repaint start from %d add %f level of noise", n_min, t_i)
 
             # expand the latents if we are doing classifier free guidance
             latents = target_latents
@@ -962,7 +962,7 @@ class ACEStepPipeline:
         else:
             ensure_directory_exists(os.path.dirname(save_path))
             if os.path.isdir(save_path):
-                logger.info("Provided save_path '{}' is a directory. Appending timestamped filename.", save_path)
+                logger.info("Provided save_path '%s' is a directory. Appending timestamped filename.", save_path)
                 output_path_wav = os.path.join(save_path, f"output_{time.strftime('%Y%m%d%H%M%S')}_{idx}."+format)
             else:
                 output_path_wav = save_path
@@ -971,7 +971,7 @@ class ACEStepPipeline:
         backend = "soundfile"
         if format == "ogg":
             backend = "sox"
-        logger.info("Saving audio to {} using backend {}", output_path_wav, backend)
+        logger.info("Saving audio to %s using backend %s", output_path_wav, backend)
         torchaudio.save(output_path_wav, target_wav, sample_rate=sample_rate, format=format, backend=backend)
         return output_path_wav
 
@@ -996,7 +996,7 @@ class ACEStepPipeline:
                 self.ace_step_transformer.unload_lora()
             self.ace_step_transformer.load_lora_adapter(os.path.join(lora_download_path, "pytorch_lora_weights.safetensors"), adapter_name="ace_step_lora", with_alpha=True, prefix=None)
 
-            logger.info("Loading lora weights from: {} download path is: {} weight: {}", lora_name_or_path, lora_download_path, lora_weight)
+            logger.info("Loading lora weights from: %s download path is: %s weight: %s", lora_name_or_path, lora_download_path, lora_weight)
             set_weights_and_activate_adapters(self.ace_step_transformer, ["ace_step_lora"], [lora_weight])
             self.lora_path = lora_name_or_path
             self.lora_weight = lora_weight
@@ -1060,7 +1060,7 @@ class ACEStepPipeline:
 
         self.load_lora(lora_name_or_path, lora_weight)
         load_model_cost = time.time() - start_time
-        logger.info("Model loaded in {:.2f} seconds.", load_model_cost)
+        logger.info("Model loaded in %.2f seconds.", load_model_cost)
 
         start_time = time.time()
 
@@ -1096,7 +1096,7 @@ class ACEStepPipeline:
 
         if audio_duration <= 0:
             audio_duration = random.uniform(30.0, 240.0)
-            logger.info("random audio duration: {}", audio_duration)
+            logger.info("random audio duration: %.2f", audio_duration)
 
         end_time = time.time()
         preprocess_time_cost = end_time - start_time
