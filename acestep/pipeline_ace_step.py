@@ -968,9 +968,11 @@ class ACEStepPipeline:
                 output_path_wav = save_path
 
         target_wav = target_wav.float()
-        logger.info("Saving audio to {}", output_path_wav)
-        torchaudio.save(output_path_wav, target_wav, sample_rate=sample_rate, format=format)
-
+        backend = "soundfile"
+        if format == "ogg":
+            backend = "sox"
+        logger.info("Saving audio to {} using backend {}", output_path_wav, backend)
+        torchaudio.save(output_path_wav, target_wav, sample_rate=sample_rate, format=format, backend=backend)
         return output_path_wav
 
     @cpu_offload("music_dcae")
