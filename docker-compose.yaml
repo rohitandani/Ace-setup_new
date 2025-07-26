@@ -2,7 +2,7 @@
 services:
   &name ace-step:
     build:
-      context: https://github.com/ace-step/ACE-Step.git
+      context: .
       dockerfile: Dockerfile
     container_name: *name
     hostname: *name
@@ -15,7 +15,7 @@ services:
       - ./logs:/app/logs
     environment:
       - ACE_OUTPUT_DIR=/app/outputs
-    # command: python app.py --server_name 0.0.0.0 --port 7865 --share False --bf16 True --torch_compile True --device-id 0
+    command: python3 acestep/gui.py --server_name 0.0.0.0 --port 7865 --bf16 true --torch_compile true --cpu_offload true --overlapped_decode true
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7865/"]
       interval: 60s

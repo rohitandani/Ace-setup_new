@@ -30,9 +30,10 @@ RUN useradd -m -u 1001 appuser
 
 # Set working directory
 WORKDIR /app
+COPY . .
 
 # Clone the repository
-RUN git clone https://github.com/ace-step/ACE-Step.git .
+# RUN git clone https://github.com/ace-step/ACE-Step.git .
 
 # Install specific PyTorch version compatible with CUDA 12.6
 RUN pip3 install --no-cache-dir --upgrade pip && \
