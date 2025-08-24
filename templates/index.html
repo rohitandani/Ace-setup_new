@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Monkey Needs Banana</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Parisienne&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #628f3d 0%, #4a6f2d 100%);
+      overflow-x: hidden;
+      padding-top: 60px;
+      animation: junglePulse 10s infinite alternate;
+    }
+
+    @keyframes junglePulse {
+      0% { background-position: 0% 0%; }
+      100% { background-position: 100% 100%; }
+    }
+
+    /* NAVBAR */
+    .navbar {
+      background-color: #7ba64c;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      opacity: 0;
+      animation: fadeIn 1s ease-in forwards 0.5s;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    .navbar.scrolled {
+      background: linear-gradient(to right, #7ba64c, #628f3d);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 70px;
+    }
+
+    .brand a {
+      color: #ffd700;
+      font-family: "Parisienne", cursive;
+      font-size: 40px;
+      font-weight: bold;
+      font-style: italic;
+      text-decoration: none;
+      animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-10px); }
+      60% { transform: translateY(-5px); }
+    }
+
+    .nav-toggle {
+      display: none;
+    }
+
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .hamburger span {
+      height: 3px;
+      width: 25px;
+      background: #fff;
+      border-radius: 2px;
+      transition: all 0.3s ease;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 20px;
+    }
+
+    .nav-links a {
+      position: relative;
+      z-index: 1;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 500;
+      padding: 8px 15px;
+      border-radius: 5px;
+      transition: all 0.2s ease-in-out;
+      display: inline-block;
+      margin: 0 5px;
+    }
+
+    .nav-links a:hover {
+      color: #000;
+      background-color: #ffd700;
+      transform: scale(1.05);
+    }
+
+    @media (max-width: 768px) {
+      .hamburger {
+        display: flex;
+      }
+
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        background-color: #7ba64c;
+        position: absolute;
+        top: 60px;
+        left: 0;
+        width: 100%;
+        padding: 15px 20px;
+        border-radius: 0 0 10px 10px;
+        z-index: 1000;
+      }
+
+      .nav-toggle:checked + .hamburger + .nav-links {
+        display: flex;
+      }
+
+      .nav-links a {
+        padding: 12px 20px;
+        margin: 5px 0;
+        text-align: center;
+        border-radius: 5px;
+        transition: all 0.2s ease-in-out;
+      }
+
+      .nav-links a:hover {
+        background-color: #ffd700;
+        transform: scale(1.02);
+      }
+    }
+
+    /* OUTER CONTAINER */
+    .outer-box {
+      background-color: rgba(123, 166, 76, 0.9);
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 1000px;
+      margin: 30px auto;
+      animation: slideUp 1s ease-out;
+    }
+
+    @keyframes slideUp {
+      0% { transform: translateY(50px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    .image-container {
+      position: relative;
+      padding: 10px 0;
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    .main-image {
+      width: 100%;
+      max-width: 600px;
+      border-radius: 10px;
+      display: block;
+      transition: transform 0.3s ease;
+    }
+
+    .main-image:hover {
+      transform: scale(1.05);
+    }
+
+    .text-box {
+      position: absolute;
+      top: 25%;
+      right: -15%;
+      width: 45%;
+      max-width: 370px;
+      padding: 16px 14px;
+      background-color: rgba(123, 166, 76, 0.95);
+      color: #fff;
+      clip-path: polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%);
+      font-style: italic;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      z-index: 2;
+      opacity: 0.9;
+      transition: all 0.3s ease;
+    }
+
+    .text-box:hover {
+      opacity: 1;
+      transform: translateX(-10px);
+    }
+
+    .text-box h2 {
+      color: #fff889;
+      font-style: normal;
+      font-size: 18px;
+      margin-bottom: 10px;
+      animation: fadeInText 2s infinite alternate;
+    }
+
+    @keyframes fadeInText {
+      0% { opacity: 0.7; }
+      100% { opacity: 1; }
+    }
+
+    .text-box p {
+      font-size: 13px;
+      color: #fffdd0;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 768px) {
+      .text-box {
+        width: 85%;
+        right: 5%;
+        top: 10px;
+        opacity: 0.85;
+        background-color: rgba(123, 166, 76, 0.85);
+        padding: 14px;
+        clip-path: polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%);
+      }
+
+      .main-image {
+        max-width: 100%;
+      }
+
+      .text-box h2 {
+        font-size: 16px;
+      }
+
+      .text-box p {
+        font-size: 12px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .text-box {
+        width: 90%;
+        padding: 12px;
+        opacity: 0.8;
+      }
+    }
+
+    /* VIDEO SECTION */
+    .video-section {
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+      text-align: center;
+      color: #fffdd0;
+      animation: fadeInUp 1s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .video-heading h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+      color: #ffe97f;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .video-heading p {
+      font-size: 16px;
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+
+    .video-wrapper {
+      position: relative;
+      padding-bottom: 56.25%;
+      height: 0;
+      overflow: hidden;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .video-wrapper iframe,
+    .video-wrapper video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 12px;
+    }
+
+    /* About section with red box and overlapping image */
+    .about-section {
+      max-width: 1000px;
+      margin: 60px auto;
+      padding: 0 20px;
+      position: relative;
+      animation: slideIn 1s ease-out;
+    }
+
+    @keyframes slideIn {
+      0% { opacity: 0; transform: translateX(-50px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+
+    .about-container {
+      display: flex;
+      gap: 30px;
+      align-items: center;
+    }
+
+    .red-box {
+      background-color: #7ba64c;
+      width: 45%;
+      padding: 40px;
+      border-radius: 12px;
+      position: relative;
+      min-height: 450px;
+    }
+
+    .about-image {
+      position: absolute;
+      width: 350px;
+      height: auto;
+      top: 40px;
+      right: 52%;
+      border-radius: 8px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+      z-index: 2;
+      transition: transform 0.3s ease;
+    }
+
+    .about-image:hover {
+      transform: rotate(5deg) scale(1.05);
+    }
+
+    .about-text {
+      width: 45%;
+      color: #fffdd0;
+    }
+
+    .about-text h2 {
+      font-size: 24px;
+      font-style: italic;
+      color: #fff889;
+      margin-bottom: 15px;
+    }
+
+    .about-text p {
+      font-size: 16px;
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    @media (max-width: 992px) {
+      .about-container {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .red-box {
+        width: 60%;
+        margin-top: 100px;
+        min-height: 350px;
+      }
+
+      .about-image {
+        width: 300px;
+        top: 50px;
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .about-text {
+        width: 80%;
+        text-align: center;
+        margin-top: -20px;
+      }
+    }
+
+    @media (max-width: 576px) {
+      .red-box {
+        width: 90%;
+        padding: 30px 20px;
+      }
+
+      .about-text {
+        width: 90%;
+      }
+
+      .about-text h2 {
+        font-size: 22px;
+      }
+
+      .about-text p {
+        font-size: 14px;
+      }
+    }
+
+    /* Split Section with Image Left and Text Right */
+    .split-section {
+      display: flex;
+      align-items: center;
+      padding: 40px 20px;
+      background-color: #7ba64c;
+      margin: 40px 0;
+      animation: fadeInRight 1s ease-out;
+    }
+
+    @keyframes fadeInRight {
+      0% { opacity: 0; transform: translateX(50px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+
+    .split-section img {
+      width: 45%;
+      border-radius: 12px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+      transition: transform 0.3s ease;
+    }
+
+    .split-section img:hover {
+      transform: scale(1.05);
+    }
+
+    .split-content {
+      width: 45%;
+      padding-left: 40px;
+      color: #fffdd0;
+    }
+
+    .split-content h2 {
+      font-size: 24px;
+      color: #fff889;
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+
+    .split-content p {
+      font-size: 16px;
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    @media (max-width: 768px) {
+      .split-section {
+        flex-direction: column;
+        padding: 30px 20px;
+      }
+
+      .split-section img {
+        width: 90%;
+        margin-bottom: 30px;
+      }
+
+      .split-content {
+        width: 90%;
+        padding-left: 0;
+        text-align: center;
+      }
+    }
+
+    /* Full-width image section */
+    .full-width-section {
+      position: relative;
+      width: 100%;
+      height: 500px;
+      overflow: hidden;
+      margin: 40px 0;
+      animation: zoomIn 1s ease-out;
+    }
+
+    @keyframes zoomIn {
+      0% { transform: scale(1.1); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .full-width-section img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .overlay-text {
+      position: absolute;
+      top: 10%;
+      left: 30%;
+      width: 40%;
+      color: #fffdd0;
+      background-color: rgba(123, 166, 76, 0.9);
+      padding: 30px;
+      border-radius: 12px;
+      animation: bounceIn 1s ease-out;
+    }
+
+    @keyframes bounceIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .overlay-text h2 {
+      font-size: 24px;
+      color: #fff889;
+      margin-bottom: 15px;
+      font-style: italic;
+    }
+
+    .overlay-text p {
+      font-size: 16px;
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    @media (max-width: 768px) {
+      .full-width-section {
+        height: 400px;
+      }
+
+      .overlay-text {
+        left: 10%;
+        width: 80%;
+        padding: 20px;
+      }
+    }
+
+    /* Footer section */
+    .footer {
+      background-color: #7ba64c;
+      padding: 10px 10px;
+      text-align: center;
+      color: #fffdd0;
+      margin-top: 40px;
+      animation: slideUpFooter 1s ease-out;
+    }
+
+    @keyframes slideUpFooter {
+      0% { transform: translateY(50px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    .footer h2 {
+      font-size: 20px;
+      color: #fff889;
+      margin-bottom: 10px;
+      font-style: italic;
+    }
+
+    .footer p {
+      font-size: 16px;
+      font-style: italic;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+  </style>
+  <script>
+    // Function to handle navbar transparency on scroll
+    window.addEventListener('scroll', function() {
+      const navbar = document.querySelector('.navbar');
+      if (window.scrollY > 50) {
+        navbar.classList.add('scrolled');
+      } else {
+        navbar.classList.remove('scrolled');
+      }
+    });
+
+    // Enhanced smooth scroll for navigation links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href');
+        const targetElement = document.querySelector(targetId);
+        if (targetElement) {
+          const headerOffset = 70;
+          const elementPosition = targetElement.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+
+          // Close mobile menu if open
+          document.getElementById('nav-toggle').checked = false;
+        }
+      });
+    });
+  </script>
+</head>
+<body>
+  <!-- NAVIGATION BAR -->
+  <div class="navbar">
+    <div class="brand">
+      <a href="#home">Monkey Needs Banana</a>
+    </div>
+
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" />
+    <label for="nav-toggle" class="hamburger">
+      <span></span>
+      <span></span>
+      <span></span>
+    </label>
+
+    <div class="nav-links">
+      <a href="#home">Home</a>
+      <a href="/generate.html">Generate</a>
+      <a href="#about">About</a>
+      <a href="#footer">Contact</a>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT BOX -->
+  <div id="home" class="outer-box">
+    <div class="image-container">
+      <img src="./static/images/1-section-image.jpg" alt="Monkey" class="main-image" />
+      <div class="text-box">
+        <h2>Monkey Needs Banana</h2>
+        <p>
+          Monkey Needs Banana is the meme token<br />
+          that swings through charts and trees!<br />
+          Forget the boring coins; it’s time to grab<br />
+          a banana, hop on, and watch Monkey take<br />
+          the crypto jungle by storm. Ready to ape in? 🍌🦍
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIDEO SECTION -->
+  <section class="video-section">
+    <div class="video-heading">
+      <h2>Watch Monkey in Action!</h2>
+      <p>Experience the banana-fueled chaos and joy in our trailer below 🍌👑</p>
+    </div>
+
+    <div class="video-wrapper">
+      <video controls>
+        <source src="./static/images/2-section-video.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+  </section>
+
+  <!-- RED BOX WITH OVERLAY IMAGE SECTION -->
+  <section id="about" class="about-section">
+    <div class="about-container">
+      <div class="red-box"></div>
+      <img src="./static/images/3-section-image.png" alt="Monkey Logo" class="about-image" />
+      <div class="about-text">
+        <h2>ABOUT</h2>
+        <p>
+          From the wilds of the crypto jungle,<br />
+          here comes Monkey Needs Banana—the true king of memes,<br />
+          ready to claim the crown! 🙈👑
+        </p>
+        <br />
+        <p>
+          The dogs barked, the frogs jumped, but now it's monkey time to rise.
+          Fueled by pure meme power, our monkey's mission is simple: claim the crown and go bananas together! 🍌
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Split Section with Image Left and Text Right -->
+  <section class="split-section">
+    <img src="./static/images/4-section-image.jpg" alt="Monkey Side Image" />
+    <div class="split-content">
+      <h2>Monkey Needs Banana</h2>
+      <p>
+        Monkey Needs Banana Coin is all about celebrating the fun and joy of memes! This token is a playful tribute to the things we love and share.
+        No actual bananas will be handed out (yet). This monkey’s journey to the top may involve wild swings, meme overload, and a jungle full of laughs. 
+        If you’re allergic to fun, this might not be for you. Swing in responsibly! 🍌🐒
+      </p>
+    </div>
+  </section>
+
+  <!-- Full Width Image Section with Overlay Text -->
+  <section class="full-width-section">
+    <img src="./static/images/5-section-image.png" alt="Full Width Background" />
+    <div class="overlay-text">
+      <h2>Embrace the Jungle</h2>
+      <p>
+        Welcome to the wildest corner of the crypto world, where memes meet innovation
+        and fun meets finance. Our community-driven project is more than just a token
+        – it's a movement that's taking the crypto jungle by storm! 🌴🚀
+      </p>
+    </div>
+  </section>
+
+  <!-- Footer Section -->
+  <footer id="footer" class="footer">
+    <h2>Join the Monkey Business!</h2>
+    <p>
+      © 2024 by Monkeyneedsbanana. All rights reserved!
+    </p>
+  </footer>
+</body>
+</html>
