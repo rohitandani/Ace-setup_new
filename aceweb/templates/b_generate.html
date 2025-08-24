@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Monkey Music Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Parisienne&display=swap" rel="stylesheet">
+  <style>
+    body { font-family:'Segoe UI',sans-serif; background:#628f3d; margin:0; padding-top:70px; color:#fffdd0; }
+    .navbar { background:#7ba64c; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; position:fixed; top:0; left:0; right:0; }
+    .brand a { color:#ffd700; font-family:"Parisienne", cursive; font-size:32px; text-decoration:none; font-style:italic; }
+    .nav-links a { color:#fff; text-decoration:none; margin:0 10px; }
+    .nav-links a:hover { color:#000; background:#ffd700; padding:5px 10px; border-radius:5px; }
+    .container { max-width:900px; margin:20px auto; background:#7ba64c; padding:25px; border-radius:12px; }
+    label { display:block; margin:10px 0 5px; color:#fff889; font-weight:600; font-style:italic; }
+    input, select, textarea { width:100%; padding:8px; border-radius:6px; border:1px solid #ffd700; margin-bottom:10px; }
+    button { background:#ffd700; border:none; padding:12px 20px; border-radius:8px; font-weight:bold; cursor:pointer; }
+    button:hover { background:#e6c200; }
+    #loading { display:none; margin:15px 0; }
+    #player { margin-top:20px; display:none; }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <div class="brand"><a href="/">Monkey Needs Banana</a></div>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/generate.html">Generate</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>Monkey Music Generator 🎵</h1>
+
+    <label>Prompt (Style / Tags)</label>
+    <input type="text" id="prompt" value="pop, romantic, hindi">
+
+    <label>Lyrics</label>
+    <textarea id="lyrics" placeholder="[verse] ... [chorus] ..."></textarea>
+
+    <label>Duration (seconds)</label>
+    <input type="number" id="audio_duration" value="60">
+
+    <label>Format</label>
+    <select id="format">
+      <option value="wav">WAV</option>
+      <option value="mp3" selected>MP3</option>
+    </select>
+
+    <label>Infer Steps</label>
+    <input type="number" id="infer_step" value="10">
+
+    <label>Guidance Scale</label>
+    <input type="number" step="0.1" id="guidance_scale" value="8.0">
+
+    <button id="generate-btn" onclick="generateMusic()">Generate</button>
+    <div id="loading">Generating music... please wait.</div>
+
+    <div id="player">
+      <h2>Your Generated Music</h2>
+      <audio controls id="generated-audio"></audio>
+      <br><br>
+      <a id="download-link" href="#" download>⬇ Download</a>
+    </div>
+  </div>
+
+  <script>
+    async function generateMusic() {
+      const btn = document.getElementById('generate-btn');
+      const loading = document.getElementById('loading');
+      const player = document.getElementById('player');
+      const audioEl = document.getElementById('generated-audio');
+      const dlLink = document.getElementById('download-link');
+
+      btn.disabled = true;
+      loading.style.display = 'block';
+      player.style.display = 'none';
+
+      const payload = {
+        format: document.getElementById('format').value,
+        audio_duration: parseInt(document.getElementById('audio_duration').value),
+        prompt: document.getElementById('prompt').value.trim(),
+        lyrics: document.getElementById('lyrics').value.trim(),
+        infer_step: parseInt(document.getElementById('infer_step').value),
+        guidance_scale: parseFloat(document.getElementById('guidance_scale').value),
+        scheduler_type: "euler",
+        cfg_type: "apg",
+        omega_scale: 10.0,
+        manual_seeds: null,
+        guidance_interval: 0.5,
+        guidance_interval_decay: 0.0,
+        min_guidance_scale: 3.0,
+        use_erg_tag: true,
+        use_erg_lyric: false,
+        use_erg_diffusion: true,
+        oss_steps: null,
+        guidance_scale_text: 0.0,
+        guidance_scale_lyric: 0.0,
+        audio2audio_enable: false,
+        ref_audio_strength: 0.5,
+        ref_audio_input: null,
+        lora_name_or_path: "none",
+        lora_weight: 1.0
+      };
+
+      const fd = new FormData();
+      fd.append("payload", JSON.stringify(payload));
+
+      try {
+        const res = await fetch("/generate", { method: "POST", body: fd });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || "Generation failed");
+
+        audioEl.src = data.download_url;
+        dlLink.href = data.download_url;
+        dlLink.download = `music.${payload.format}`;
+
+        player.style.display = 'block';
+      } catch (err) {
+        alert("Error: " + err.message);
+      } finally {
+        btn.disabled = false;
+        loading.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
