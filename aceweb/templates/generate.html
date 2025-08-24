@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Monkey Music Generator 🎵</title>
+  <link href="https://fonts.googleapis.com/css2?family=Parisienne&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #628f3d 0%, #4a6f2d 100%);
+      margin: 0;
+      padding-top: 70px;
+      color: #fffdd0;
+      overflow-x: hidden;
+    }
+
+    .navbar {
+      background: #7ba64c;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+    }
+
+    .brand a {
+      color: #ffd700;
+      font-family: "Parisienne", cursive;
+      font-size: 32px;
+      text-decoration: none;
+    }
+
+    .nav-links a {
+      color: #fff;
+      text-decoration: none;
+      margin: 0 10px;
+      transition: all 0.3s ease;
+    }
+
+    .nav-links a:hover {
+      color: #000;
+      background: #ffd700;
+      padding: 5px 10px;
+      border-radius: 5px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+      background: rgba(123, 166, 76, 0.9);
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      color: #fff889;
+      font-weight: 600;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ffd700;
+      margin-bottom: 10px;
+    }
+
+    button {
+      background: #ffd700;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #e6c200;
+    }
+
+    #loading {
+      display: none;
+      margin: 15px 0;
+      text-align: center;
+      font-size: 18px;
+      color: #fff889;
+    }
+
+    #player {
+      margin-top: 20px;
+      display: none;
+    }
+
+    /* GAME AREA */
+    #banana-game {
+      display: none;
+      position: relative;
+      width: 100%;
+      height: 400px;
+      margin-top: 20px;
+      background: url('/static/images/1-section-image.png') no-repeat center;
+      background-size: cover;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+      color: #ffd700;
+      font-weight: bold;
+      z-index: 10;
+    }
+
+    .banana {
+     width: 70px;
+    height: 70px;
+    background: url('/static/images/cursor-banana-48.png') no-repeat center;
+    background-size: contain;
+    position: absolute;
+    top: -70px;
+    }
+
+    #monkey {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 80px;
+      background: url('/static/images/monkey_rigg_final.png') no-repeat center;
+      background-size: contain;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <div class="brand"><a href="/">Monkey Needs Banana</a></div>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/generate.html">Generate</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>Monkey Music Generator 🎵</h1>
+
+    <label>Prompt (Style / Tags)</label>
+    <input type="text" id="prompt" value="pop, romantic, hindi">
+
+    <label>Lyrics</label>
+    <textarea id="lyrics" placeholder="[verse] ... [chorus] ..."></textarea>
+
+    <label>Duration (seconds)</label>
+    <input type="number" id="audio_duration" value="60">
+
+    <label>Format</label>
+    <select id="format">
+      <option value="wav">WAV</option>
+      <option value="mp3" selected>MP3</option>
+    </select>
+
+    <label>Infer Steps</label>
+    <input type="number" id="infer_step" value="10">
+
+    <label>Guidance Scale</label>
+    <input type="number" step="0.1" id="guidance_scale" value="8.0">
+
+    <button id="generate-btn" onclick="generateMusic()">Generate</button>
+    <div id="loading">Generating music... 🎧 Catch bananas while you wait!</div>
+
+    <div id="player">
+      <h2>Your Generated Music</h2>
+      <audio controls id="generated-audio"></audio>
+      <br><br>
+      <a id="download-link" href="#" download>⬇ Download</a>
+    </div>
+
+    <div id="banana-game">
+      <div id="score">Score: 0</div>
+      <div id="monkey"></div>
+    </div>
+  </div>
+
+  <script>
+    let score = 0;
+    let gameActive = false;
+    let monkeyX = 50; // percentage
+
+    async function generateMusic() {
+      const btn = document.getElementById('generate-btn');
+      const loading = document.getElementById('loading');
+      const player = document.getElementById('player');
+      const audioEl = document.getElementById('generated-audio');
+      const dlLink = document.getElementById('download-link');
+      const game = document.getElementById('banana-game');
+
+      btn.disabled = true;
+      loading.style.display = 'block';
+      player.style.display = 'none';
+      game.style.display = 'block';
+      startGame();
+
+      const payload = {
+        format: document.getElementById('format').value,
+        audio_duration: parseInt(document.getElementById('audio_duration').value),
+        prompt: document.getElementById('prompt').value.trim(),
+        lyrics: document.getElementById('lyrics').value.trim(),
+        infer_step: parseInt(document.getElementById('infer_step').value),
+        guidance_scale: parseFloat(document.getElementById('guidance_scale').value),
+        scheduler_type: "euler",
+        cfg_type: "apg",
+        omega_scale: 10.0,
+        manual_seeds: null,
+        guidance_interval: 0.5,
+        guidance_interval_decay: 0.0,
+        min_guidance_scale: 3.0,
+        use_erg_tag: true,
+        use_erg_lyric: false,
+        use_erg_diffusion: true,
+        oss_steps: null,
+        guidance_scale_text: 0.0,
+        guidance_scale_lyric: 0.0,
+        audio2audio_enable: false,
+        ref_audio_strength: 0.5,
+        ref_audio_input: null,
+        lora_name_or_path: "none",
+        lora_weight: 1.0
+      };
+
+      const fd = new FormData();
+      fd.append("payload", JSON.stringify(payload));
+
+      try {
+        const res = await fetch("/generate", { method: "POST", body: fd });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || "Generation failed");
+
+        audioEl.src = data.download_url;
+        dlLink.href = data.download_url;
+        dlLink.download = `music.${payload.format}`;
+        player.style.display = 'block';
+      } catch (err) {
+        alert("Error: " + err.message);
+      } finally {
+        btn.disabled = false;
+        loading.style.display = 'none';
+        stopGame();
+        game.style.display = 'none';
+      }
+    }
+
+    function startGame() {
+      score = 0;
+      gameActive = true;
+      document.getElementById('score').textContent = "Score: 0";
+      spawnBanana();
+    }
+
+    function stopGame() {
+      gameActive = false;
+      document.querySelectorAll('.banana').forEach(b => b.remove());
+    }
+function spawnBanana() {
+  if (!gameActive) return;
+  const game = document.getElementById('banana-game');
+  const banana = document.createElement('div');
+  banana.className = 'banana';
+
+  // Drop across full width of game box
+  const gameWidth = game.clientWidth - 70; // subtract banana width
+  banana.style.left = Math.floor(Math.random() * gameWidth) + "px";
+  banana.style.top = "-70px";
+  game.appendChild(banana);
+
+  let pos = -70;
+  const fall = setInterval(() => {
+    if (!gameActive) { clearInterval(fall); banana.remove(); return; }
+    pos += 5;
+    banana.style.top = pos + "px";
+
+    const monkey = document.getElementById('monkey');
+    const monkeyRect = monkey.getBoundingClientRect();
+    const bananaRect = banana.getBoundingClientRect();
+
+    if (
+      bananaRect.bottom >= monkeyRect.top &&
+      bananaRect.left < monkeyRect.right &&
+      bananaRect.right > monkeyRect.left
+    ) {
+      score++;
+      document.getElementById('score').textContent = "Score: " + score;
+      banana.remove();
+      clearInterval(fall);
+    }
+
+    if (pos > game.clientHeight) { 
+      banana.remove(); 
+      clearInterval(fall); 
+    }
+  }, 50);
+
+  setTimeout(spawnBanana, 1000);
+}
+
+
+    // Move monkey with arrow keys
+    document.addEventListener('keydown', (e) => {
+      const monkey = document.getElementById('monkey');
+      if (e.key === "ArrowLeft" && monkeyX > 5) monkeyX -= 5;
+      if (e.key === "ArrowRight" && monkeyX < 95) monkeyX += 5;
+      monkey.style.left = monkeyX + "%";
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ace Music Generator 🎵</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 32px; max-width: 900px; }
+    h1 { margin-top: 0; }
+    label { font-weight: 600; display: block; margin-top: 14px; }
+    input[type="text"], input[type="number"], textarea, select {
+      width: 100%; max-width: 640px; padding: 8px; margin-top: 6px;
+      border: 1px solid #ccc; border-radius: 8px;
+    }
+    textarea { height: 180px; }
+    .row { display: grid; grid-template-columns: 200px 1fr; gap: 12px; align-items: center; }
+    .row > label { margin: 0; }
+    .btn { margin-top: 18px; padding: 10px 16px; border: 0; border-radius: 10px; cursor: pointer; }
+    .primary { background: #2d6cdf; color: white; }
+    details { margin-top: 18px; }
+    #player { margin-top: 24px; }
+    .inline { display: inline-flex; align-items: center; gap: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Ace Music Generator 🎵</h1>
+
+  <form id="genForm">
+    <div class="row">
+      <label for="format">Format</label>
+      <select id="format">
+        <option value="wav">wav</option>
+        <option value="mp3" selected>mp3</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label for="audio_duration">Audio Duration (sec)</label>
+      <input type="number" id="audio_duration" value="60" min="1" />
+    </div>
+
+    <div class="row">
+      <label for="prompt">Prompt (style/mood)</label>
+      <input type="text" id="prompt" value="pop, romantic, hindi" />
+    </div>
+
+    <label for="lyrics">Lyrics</label>
+    <textarea id="lyrics">[verse]
+Teri muskaan se, roshni hai mili
+Dil ke raaston mein, tu hi tu basi
+Saanson mein teri, ek mehfil si hai
+Tujh bin jeevan, adhoori si kahani hai
+
+[bridge]
+Chandni raat mein, tera khayal aaya
+Dil ke kone mein, ek sapna jagaya
+Teri baaton se, dil yeh behak gaya
+Tu jo paas hai, har pal suhana laya</textarea>
+
+    <div class="row">
+      <label for="infer_step">Infer Step</label>
+      <input type="number" id="infer_step" value="10" min="1" />
+    </div>
+
+    <div class="row">
+      <label for="guidance_scale">Guidance Scale</label>
+      <input type="number" id="guidance_scale" value="8.0" step="0.1" />
+    </div>
+
+    <div class="row">
+      <label for="scheduler_type">Scheduler Type</label>
+      <input type="text" id="scheduler_type" value="euler" />
+    </div>
+
+    <details>
+      <summary><b>Advanced settings</b></summary>
+
+      <div class="row"><label for="cfg_type">cfg_type</label><input id="cfg_type" value="apg" /></div>
+      <div class="row"><label for="omega_scale">omega_scale</label><input type="number" id="omega_scale" value="10.0" step="0.1" /></div>
+      <div class="row"><label for="manual_seeds">manual_seeds</label><input id="manual_seeds" placeholder="e.g. 1234 or leave blank" /></div>
+      <div class="row"><label for="guidance_interval">guidance_interval</label><input type="number" id="guidance_interval" value="0.5" step="0.1" /></div>
+      <div class="row"><label for="guidance_interval_decay">guidance_interval_decay</label><input type="number" id="guidance_interval_decay" value="0.0" step="0.1" /></div>
+      <div class="row"><label for="min_guidance_scale">min_guidance_scale</label><input type="number" id="min_guidance_scale" value="3.0" step="0.1" /></div>
+
+      <div class="row">
+        <label>ERG toggles</label>
+        <div class="inline">
+          <input type="checkbox" id="use_erg_tag" checked /><label for="use_erg_tag">use_erg_tag</label>
+          <input type="checkbox" id="use_erg_lyric" /><label for="use_erg_lyric">use_erg_lyric</label>
+          <input type="checkbox" id="use_erg_diffusion" checked /><label for="use_erg_diffusion">use_erg_diffusion</label>
+        </div>
+      </div>
+
+      <div class="row"><label for="oss_steps">oss_steps</label><input id="oss_steps" placeholder="leave blank for None" /></div>
+      <div class="row"><label for="guidance_scale_text">guidance_scale_text</label><input type="number" id="guidance_scale_text" value="0.0" step="0.1" /></div>
+      <div class="row"><label for="guidance_scale_lyric">guidance_scale_lyric</label><input type="number" id="guidance_scale_lyric" value="0.0" step="0.1" /></div>
+
+      <div class="row">
+        <label for="audio2audio_enable">Audio2Audio</label>
+        <div class="inline">
+          <input type="checkbox" id="audio2audio_enable" />
+          <span>Enable</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <label for="ref_audio_input">ref_audio_input</label>
+        <input type="file" id="ref_audio_input" accept="audio/*" />
+      </div>
+
+      <div class="row"><label for="ref_audio_strength">ref_audio_strength</label><input type="number" id="ref_audio_strength" value="0.5" step="0.05" min="0" max="1" /></div>
+
+      <div class="row"><label for="lora_name_or_path">lora_name_or_path</label><input id="lora_name_or_path" value="none" /></div>
+      <div class="row"><label for="lora_weight">lora_weight</label><input type="number" id="lora_weight" value="1.0" step="0.1" /></div>
+    </details>
+
+    <button id="generateBtn" class="btn primary" type="submit">Generate</button>
+  </form>
+
+  <div id="player"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const val = (id) => $(id).value;
+
+    document.getElementById("genForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = $("generateBtn");
+      btn.disabled = true; btn.textContent = "Generating...";
+
+      // Build payload (mirrors your Python example)
+      const payload = {
+        format: val("format"),
+        audio_duration: parseInt(val("audio_duration") || 60),
+        prompt: val("prompt"),
+        lyrics: val("lyrics"),
+        infer_step: parseInt(val("infer_step") || 10),
+        guidance_scale: parseFloat(val("guidance_scale") || 8.0),
+        scheduler_type: val("scheduler_type"),
+        cfg_type: val("cfg_type") || "apg",
+        omega_scale: parseFloat(val("omega_scale") || 10.0),
+        manual_seeds: val("manual_seeds") || null,
+        guidance_interval: parseFloat(val("guidance_interval") || 0.5),
+        guidance_interval_decay: parseFloat(val("guidance_interval_decay") || 0.0),
+        min_guidance_scale: parseFloat(val("min_guidance_scale") || 3.0),
+        use_erg_tag: $("use_erg_tag").checked,
+        use_erg_lyric: $("use_erg_lyric").checked,
+        use_erg_diffusion: $("use_erg_diffusion").checked,
+        oss_steps: val("oss_steps") || null,
+        guidance_scale_text: parseFloat(val("guidance_scale_text") || 0.0),
+        guidance_scale_lyric: parseFloat(val("guidance_scale_lyric") || 0.0),
+        audio2audio_enable: $("audio2audio_enable").checked,
+        ref_audio_strength: parseFloat(val("ref_audio_strength") || 0.5),
+        lora_name_or_path: val("lora_name_or_path") || "none",
+        lora_weight: parseFloat(val("lora_weight") || 1.0)
+      };
+
+      const fd = new FormData();
+      fd.append("payload", JSON.stringify(payload));
+      const refFile = $("ref_audio_input").files[0];
+      if (refFile) fd.append("ref_audio_input", refFile);
+
+      try {
+        const res = await fetch("/generate", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Generation failed");
+
+        $("player").innerHTML = `
+          <h3>Generated Music</h3>
+          <audio controls src="${data.download_url}"></audio><br/>
+          <a href="${data.download_url}" download="generated.${payload.format}">Download</a>
+        `;
+      } catch (err) {
+        alert("Error: " + err.message);
+        console.error(err);
+      } finally {
+        btn.disabled = false; btn.textContent = "Generate";
+      }
+    });
+  </script>
+</body>
+</html>
